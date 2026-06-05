@@ -33,7 +33,7 @@
         "Run node scripts/read-dev-logs.js after a dev request.",
         "Confirm failures include actionable messages instead of silent exits."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P1-VALIDATE-001",
