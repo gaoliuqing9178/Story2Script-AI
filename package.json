@@ -1,0 +1,27 @@
+{
+  "name": "story2script-ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "concurrently -k -n server,web \"pnpm --filter @story2script/server dev\" \"pnpm --filter @story2script/web dev\"",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r --if-present test",
+    "test:ui": "playwright test -c apps/web/playwright.config.ts",
+    "build": "pnpm -r --if-present build",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "logs": "node scripts/read-dev-logs.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@playwright/test": "^1.52.0",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.28.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  }
+}

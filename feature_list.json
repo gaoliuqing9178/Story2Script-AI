@@ -1,0 +1,200 @@
+{
+  "_rules": {
+    "truth_source": "This file is the project progress source of truth. AGENTS.md, progress.md, docs/handoff.md, contracts, QA reports, tests, and code must stay consistent with it.",
+    "pass_policy": "Coding agents may change passes from false to true only after real verification evidence exists. Do not delete, weaken, rewrite, or rename feature items to make verification easier.",
+    "scope_policy": "Each coding round should target one small feature item and leave the repo in a clean, verified state."
+  },
+  "features": [
+    {
+      "id": "P0-E2E-001",
+      "phase": "Phase 0",
+      "category": "functional",
+      "priority": "P0",
+      "description": "MockProvider returns hardcoded legal screenplay YAML and the web app displays it through the backend API.",
+      "steps": [
+        "Start pnpm dev.",
+        "Open http://127.0.0.1:5173.",
+        "Click the mock/sample generate button.",
+        "Verify the page displays YAML containing schema_version, project, source, characters, locations, and scenes.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P0-INFRA-002",
+      "phase": "Phase 0",
+      "category": "engineering",
+      "priority": "P0",
+      "description": "Repository scripts, TypeScript, ESLint, Vitest, Playwright, and structured logs provide a repeatable development harness.",
+      "steps": [
+        "Run pnpm install.",
+        "Run pnpm verify.",
+        "Run pnpm test:ui.",
+        "Run node scripts/read-dev-logs.js after a dev request.",
+        "Confirm failures include actionable messages instead of silent exits."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P1-VALIDATE-001",
+      "phase": "Phase 1",
+      "category": "functional",
+      "priority": "P0",
+      "description": "AJV structural validation enforces yaml-schema.md v1.0 required fields, enums, arrays, and minimum chapter count.",
+      "steps": [
+        "Submit valid examples/screenplay-sample.yaml to /api/yaml/validate.",
+        "Delete schema_version and verify a precise path error.",
+        "Delete project.title and verify a precise path error.",
+        "Set beats[0].type to an invalid enum and verify a precise path error.",
+        "Run pnpm verify."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P1-VALIDATE-002",
+      "phase": "Phase 1",
+      "category": "functional",
+      "priority": "P0",
+      "description": "Application-layer validation checks references, conditional speaker requirements, ID uniqueness, and chapter coverage.",
+      "steps": [
+        "Break a dialogue speaker reference and verify scenes[x].beats[y].speaker error.",
+        "Remove speaker from dialogue and inner_voice beats and verify conditional required errors.",
+        "Duplicate character/location/scene ids and verify duplicate id errors.",
+        "Leave a source chapter unused and verify a chapter coverage warning.",
+        "Run pnpm verify."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P2-LLM-001",
+      "phase": "Phase 2",
+      "category": "functional",
+      "priority": "P1",
+      "description": "OpenAI-compatible provider runs single-stage novel-to-YAML generation and immediately returns validation results.",
+      "steps": [
+        "Set LLM_PROVIDER=openai with local .env only.",
+        "Use examples/novel-sample.md as input.",
+        "Generate YAML through /api/screenplay/generate.",
+        "Verify the response includes yaml and validation with either valid:true or precise errors.",
+        "Switch back to LLM_PROVIDER=mock and verify mock flow still works."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P3-PIPELINE-001",
+      "phase": "Phase 3",
+      "category": "functional",
+      "priority": "P1",
+      "description": "Chapter splitting supports Chinese chapter titles, English Chapter headings, Markdown headings, and ---chapter--- separators.",
+      "steps": [
+        "Submit at least four fixture texts to /api/chapters/split.",
+        "Verify each returns ordered chapter ids, titles, content, and word_count.",
+        "Submit fewer than 3 chapters and verify HTTP 422 TOO_FEW_CHAPTERS.",
+        "Run pnpm verify."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P3-PIPELINE-002",
+      "phase": "Phase 3",
+      "category": "functional",
+      "priority": "P1",
+      "description": "Multi-stage pipeline performs chapter analysis, screenplay bible generation, scene generation, validation, and bounded structure repair.",
+      "steps": [
+        "Use a longer sample novel with at least 5 chapters.",
+        "Run split -> analyze -> bible -> generate -> validate.",
+        "Force a structural validation failure and verify repair retries are bounded.",
+        "Verify successful repair turns validation red to green without rewriting story objects.",
+        "Run pnpm verify."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P4-EDITOR-001",
+      "phase": "Phase 4",
+      "category": "functional",
+      "priority": "P1",
+      "description": "YAML editor allows direct edits, debounce validation, and displays precise validation errors.",
+      "steps": [
+        "Generate or load valid YAML.",
+        "Edit YAML in the editor.",
+        "Verify validation runs after editing.",
+        "Break project.title and verify the validation panel shows a precise path.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P4-PREVIEW-002",
+      "phase": "Phase 4",
+      "category": "functional",
+      "priority": "P1",
+      "description": "Screenplay preview renders five beat types: action, dialogue, narration, transition, and inner_voice.",
+      "steps": [
+        "Load YAML containing all five beat types.",
+        "Verify scene header shows scene number, title, location, time, and characters.",
+        "Verify each beat type renders in a readable screenplay format.",
+        "Verify preview is disabled or clearly marked when validation fails.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P4-EXPORT-003",
+      "phase": "Phase 4",
+      "category": "functional",
+      "priority": "P2",
+      "description": "Users can export the current screenplay as YAML and Markdown.",
+      "steps": [
+        "Load or generate valid YAML.",
+        "Export .yaml and verify it parses back to the same top-level structure.",
+        "Export .md and verify it contains readable scene and beat text.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P5-POLISH-001",
+      "phase": "Phase 5",
+      "category": "quality",
+      "priority": "P0",
+      "description": "Inputs with fewer than 3 chapters are blocked with a friendly, specific message.",
+      "steps": [
+        "Submit a 2-chapter Chinese novel.",
+        "Verify generation is blocked before LLM work starts.",
+        "Verify the UI tells the user at least 3 chapters are required and how many were detected.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P5-POLISH-002",
+      "phase": "Phase 5",
+      "category": "quality",
+      "priority": "P1",
+      "description": "Loading, empty, and error states are clear across generation, validation, and export paths.",
+      "steps": [
+        "Throttle or mock slow API responses.",
+        "Verify loading state is visible and buttons cannot double-submit.",
+        "Force server error and verify the UI shows a specific error path or phase.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
+      "id": "P5-DEMO-003",
+      "phase": "Phase 5",
+      "category": "demo",
+      "priority": "P0",
+      "description": "Demo assets include a stable valid YAML, a deliberately broken YAML, README, and a 3-minute demo route.",
+      "steps": [
+        "Verify examples/novel-sample.md has at least 3 chapters.",
+        "Verify examples/screenplay-sample.yaml is valid.",
+        "Add a broken YAML fixture for validation demo.",
+        "Update README with setup and demo route.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    }
+  ]
+}
