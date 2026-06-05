@@ -26,7 +26,7 @@ screenplayRouter.post('/generate', async (_req, res, next) => {
         warnings: [
           {
             path: '(harness)',
-            message: 'Validation is not implemented until Phase 1; this mock response is not a feature pass.'
+            message: 'Validation is not implemented until Phase 1; this response only confirms the mock fixture reached the API.'
           }
         ]
       }

@@ -1,5 +1,51 @@
 # Progress Log
 
+## 2026-06-05 - P0-E2E-001 Mock E2E Verification
+
+目标：正式验收 Phase 0 mock 端到端链路，让 `MockProvider` 返回写死的合法剧本 YAML，并由 Web app 通过后端 API 展示。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `docs/contracts/P0-E2E-001.md`，明确本轮只验收 mock fixture 经 `/api/screenplay/generate` 到前端展示。
+- 新增 `docs/qa/P0-E2E-001.md`，记录复现路径、评分和 PASS 结论。
+- 加强 `apps/server/tests/screenplay-route.test.ts`：真实 Express app 调用 API，解析 YAML，并断言 `schema_version`、`project`、`source`、`characters`、`locations`、`scenes` 六个顶层字段及关键数组。
+- 加强 `apps/web/tests/ui/smoke.spec.ts`：Playwright 点击“用样例生成”后断言页面显示六个顶层字段。
+- 更新 `apps/server/src/routes/screenplay.ts` 中 Phase 1 前 mock validation warning 的文案，避免与本轮已验收状态冲突。
+- 将 `feature_list.json` 中 `P0-E2E-001.passes` 改为 `true`。
+
+明确未做：
+
+- 未实现 Phase 1 的真实 YAML 校验器。
+- 未接入真实 OpenAI Provider。
+- 未实现切章、编辑器、预览、导出或修复链路。
+
+验证记录：
+
+- `pnpm verify`：通过。
+  - `typecheck`：`apps/server`、`apps/web`、`packages/shared` 全部通过。
+  - `lint`：`eslint .` 通过。
+  - `test`：shared 1 个 Vitest 通过；server 1 个 Vitest 通过，覆盖 mock YAML API 返回和 YAML 顶层契约；web 无单测且 `--passWithNoTests` 通过。
+  - `build`：shared/server `tsc` 通过；web `vite build` 通过。
+- `pnpm test:ui`：通过，Playwright Chromium 1 个 smoke 测试通过，真实浏览器打开首页、点击“用样例生成”，并断言 YAML 输出区包含六个必需顶层字段。
+
+状态确认：
+
+- `P0-E2E-001` 已具备 contract、QA 报告、API 测试、浏览器路径验证和 truth-file 同步，可以标记 `passes:true`。
+- 其他 feature 仍保持 `passes:false`。
+- Phase 1 校验器仍未实现，当前 API 的 `validation` 字段只代表响应形状，不代表真实校验能力。
+
+下一步：
+
+- 按 `feature_list.json` 继续推进 `P0-INFRA-002`，把 repository scripts、TypeScript、ESLint、Vitest、Playwright 和结构化日志作为独立工程 harness 项验收。
+
 ## 2026-06-05 - Initializer Harness
 
 目标：只搭建 harness 基础设施，不实现业务功能。

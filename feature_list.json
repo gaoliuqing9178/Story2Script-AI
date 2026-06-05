@@ -18,7 +18,7 @@
         "Verify the page displays YAML containing schema_version, project, source, characters, locations, and scenes.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P0-INFRA-002",

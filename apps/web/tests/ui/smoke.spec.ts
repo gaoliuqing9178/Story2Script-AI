@@ -8,6 +8,8 @@ test('home page displays mock YAML through the backend', async ({ page }) => {
 
   await page.getByRole('button', { name: '用样例生成' }).click();
 
-  await expect(page.getByTestId('yaml-output')).toContainText('schema_version: "1.0"');
-  await expect(page.getByTestId('yaml-output')).toContainText('scenes:');
+  const yamlOutput = page.getByTestId('yaml-output');
+  for (const expectedText of ['schema_version: "1.0"', 'project:', 'source:', 'characters:', 'locations:', 'scenes:']) {
+    await expect(yamlOutput).toContainText(expectedText);
+  }
 });
