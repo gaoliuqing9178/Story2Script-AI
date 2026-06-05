@@ -46,3 +46,28 @@
 下一步：
 
 - 第一个 coding agent 从 `P0-E2E-001` 开始，为 mock 端到端骨架补 contract 和 QA 证据，再决定是否置 `passes:true`。
+
+## 2026-06-05 - Workflow Update
+
+目标：更新每轮 generator / evaluator 验证分工。
+
+变更：
+
+- `AGENTS.md`：完成标准改为 generator 简单验证 + evaluator 子代理 Chrome DevTools MCP 真实交互和截图视觉检查。
+- `docs/dev-workflow.md`：补充 generator / evaluator 分工和提交流程。
+- `docs/contracts/template.md`：区分 generator 简单验证与 evaluator 真实交互验证。
+- `docs/qa/template.md`：加入 Chrome DevTools MCP、viewport、截图和视觉检查表。
+- `docs/decision-log.md`：记录该工作流决策。
+- `docs/quality.md`、`docs/handoff.md`：同步最终放行依据。
+
+验证记录：
+
+- `AGENTS.md` 行数检查：48 行，仍满足 ≤120 行。
+- `pnpm lint`：通过。
+- evaluator 子代理：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173`。
+  - 点击“用样例生成”后，YAML 输出包含 `schema_version` 与 `scenes:`。
+  - 已执行 full-page screenshot 视觉检查。
+  - 页面非空白，主要内容可见，无明显错位、遮挡、按钮截断或文字溢出。
+  - 发现非阻断项：`GET /favicon.ico [404]`，可后续小修。
+- `git status --short`：仅包含本轮 workflow 文档变更。

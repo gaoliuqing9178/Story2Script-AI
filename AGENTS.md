@@ -41,8 +41,8 @@ Windows 首选 `init.ps1`；其他环境可用 `init.sh`。
 一轮只推进一个小目标。完成必须同时满足：
 
 - 代码、文档、`feature_list.json`、`progress.md`、`docs/handoff.md` 状态一致。
-- `pnpm verify` 通过。
-- 涉及用户路径时，跑真实路径验证；前端路径至少跑 `pnpm test:ui` 或留下 QA 报告。
-- 只有真实验证通过后，才能把对应 feature 的 `passes` 改为 `true`。
+- generator 做简单验证：至少跑与改动直接相关的 lint/typecheck/test/build 命令，并记录结果。
+- 收尾前调用 evaluator 子代理；evaluator 必须用 Chrome DevTools MCP 跑真实交互验证，并截屏做视觉检查。
+- 涉及用户路径时，只有 evaluator 的 QA 报告放行后，才能把对应 feature 的 `passes` 改为 `true`。
 
 本仓库默认 `LLM_PROVIDER=mock`，真实 LLM 接入从 Phase 2 开始。

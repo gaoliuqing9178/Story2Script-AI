@@ -23,3 +23,24 @@ Consequences:
 - 后续 coding agent 可以在零真实 LLM key 的情况下开发与验证主路径。
 - 真实 LLM 接入从 Phase 2 开始，不能提前把 key 或 provider 细节写死。
 - 如果文档冲突，以 `docs/engineering.md` 的实现决策为准，并在本文件追加记录。
+
+## 2026-06-05 - Generator and Evaluator Workflow
+
+Status: accepted
+
+Context:
+
+- 后续每轮 coding agent 需要低成本完成小目标，不能把时间都耗在重复完整验收上。
+- 真实用户路径和视觉问题更适合由独立 evaluator 检查，避免 generator 自测视角漏掉空白页、遮挡、错位和文字溢出。
+
+Decision:
+
+- generator 每轮完成任务后只做简单验证，覆盖本次改动直接相关的 lint/typecheck/test/build 命令。
+- generator 收尾前必须调用 evaluator 子代理。
+- evaluator 必须使用 Chrome DevTools MCP 做真实交互验证，并截屏进行视觉检查。
+- 只有 evaluator QA 报告放行后，涉及用户路径的 feature 才能改为 `passes:true`。
+
+Consequences:
+
+- `pnpm test:ui` 仍保留为脚本化 smoke，但不是最终视觉验收的唯一依据。
+- `docs/qa/<feature-id>.md` 必须记录 Chrome DevTools MCP、截图证据、视觉检查结果和放行决定。

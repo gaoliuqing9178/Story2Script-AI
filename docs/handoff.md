@@ -6,6 +6,8 @@ Initializer harness 已建立基础文件结构与规则，目标是让后续 co
 
 本轮不实现业务功能，不把任何 feature 标记为 `passes:true`。Phase 0 的 mock 端到端链路只是 walking skeleton，用于证明工具链和前后端通信路径可运行。
 
+工作流已更新：generator 每轮只做简单验证；收尾前调用 evaluator 子代理，由 evaluator 使用 Chrome DevTools MCP 做真实交互验证，并截屏进行视觉检查。涉及用户路径的 feature 只有 evaluator QA 放行后才能置 `passes:true`。
+
 ## 已搭好的地基
 
 - 根 `AGENTS.md`：项目地图、开工阅读顺序、完成标准。

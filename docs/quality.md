@@ -19,6 +19,7 @@
 - MockProvider 永久保留，真实 LLM 不可用时 demo 主流程仍可走通。
 - `feature_list.json` 是真实进度表，`passes` 只能由验证结果驱动。
 - 每轮只推进一个小目标，完成后干净收尾。
+- generator 只做简单验证；真实交互和视觉检查由 evaluator 子代理用 Chrome DevTools MCP 完成。
 
 ## 当前已知缺口
 
@@ -50,3 +51,5 @@ node scripts/read-dev-logs.js
 ```
 
 如果怀疑边界违规，先跑 `pnpm lint`。错误信息会指出应通过前端 API 客户端调用，而不是直接依赖 server 层。
+
+真实用户路径和视觉质量以 evaluator 的 Chrome DevTools MCP QA 报告为最终放行依据。

@@ -6,6 +6,12 @@ Date:
 
 Evaluator:
 
+Tooling:
+
+- Chrome DevTools MCP: yes / no
+- Browser:
+- Viewport:
+
 ## 复现步骤
 
 1. 
@@ -18,6 +24,16 @@ Evaluator:
 - Trace:
 - Server logs:
 - Command output:
+
+## 视觉检查
+
+| 检查项 | 结果 | 说明 |
+| --- | --- | --- |
+| 页面非空白 | pass / fail | |
+| 首屏关键内容可见 | pass / fail | |
+| 无明显错位或遮挡 | pass / fail | |
+| 无文字溢出或按钮截断 | pass / fail | |
+| Loading / 错误态可辨认 | pass / fail | |
 
 ## 评分
 
@@ -33,7 +49,7 @@ Evaluator:
 
 Decision: HOLD / PASS
 
-只有真实路径验证通过时才写 PASS。
+只有 Chrome DevTools MCP 真实路径验证与截图视觉检查都通过时才写 PASS。
 
 ## 修复建议
 

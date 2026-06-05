@@ -46,6 +46,12 @@ Vite 会把 `/api` 代理到后端，前端不要直接 import server 代码。
 
 ## 验证
 
+本项目采用 generator / evaluator 分工：
+
+- generator：每轮只做简单验证，覆盖本次改动直接相关的命令即可，例如 `pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build` 或 `pnpm verify` 中必要的子集。
+- evaluator：每轮收尾前由 generator 调用 evaluator 子代理；evaluator 使用 Chrome DevTools MCP 做真实浏览器交互验证，并截屏检查页面是否空白、错位、遮挡、文字溢出或状态异常。
+- `passes:true` 只能在 evaluator 的 QA 报告放行后修改。generator 的简单验证通过，不等于 feature 已验证完成。
+
 ```powershell
 pnpm typecheck
 pnpm lint
@@ -55,16 +61,17 @@ pnpm verify
 pnpm test:ui
 ```
 
-`pnpm verify` 串联 typecheck、lint、test、build。涉及真实用户路径时，还要跑 `pnpm test:ui` 或补充 `docs/qa/` 报告。
+`pnpm verify` 串联 typecheck、lint、test、build。`pnpm test:ui` 是脚本化 smoke 入口；最终真实交互和视觉检查以 evaluator 的 Chrome DevTools MCP QA 报告为准。
 
 ## 提交流程
 
 1. 先确认本轮只推进 `feature_list.json` 里的一个小目标。
 2. 写或更新 `docs/contracts/<feature-id>.md`，明确本轮做什么、不做什么。
-3. 实现后跑对应验证。
-4. 只有验证通过才改 `passes:true`。
-5. 更新 `progress.md` 与 `docs/handoff.md`。
-6. 提交前看 `git diff`，避免带入密钥、日志、生成产物。
+3. generator 实现后跑简单验证，并把命令结果写入 `progress.md` 或对应 contract。
+4. 调用 evaluator 子代理做 Chrome DevTools MCP 真实交互验证和截图视觉检查。
+5. 只有 evaluator QA 放行后才改 `passes:true`。
+6. 更新 `progress.md` 与 `docs/handoff.md`。
+7. 提交前看 `git diff`，避免带入密钥、日志、生成产物。
 
 ## Windows 提示
 
