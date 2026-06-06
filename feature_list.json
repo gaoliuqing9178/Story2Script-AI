@@ -48,7 +48,7 @@
         "Set beats[0].type to an invalid enum and verify a precise path error.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P1-VALIDATE-002",
@@ -63,7 +63,7 @@
         "Leave a source chapter unused and verify a chapter coverage warning.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P2-LLM-001",
