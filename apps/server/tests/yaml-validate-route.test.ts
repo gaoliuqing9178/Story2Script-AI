@@ -8,10 +8,15 @@ import { createApp } from '../src/app.js';
 
 interface MutableBeat {
   type?: string;
+  speaker?: string;
   content?: string;
 }
 
 interface MutableScene {
+  id?: string;
+  source_chapters?: string[];
+  location_id?: string;
+  characters?: string[];
   beats?: MutableBeat[];
 }
 
@@ -21,8 +26,19 @@ interface MutableScreenplay {
     title?: string;
   };
   source?: {
-    chapters?: unknown[];
+    chapters?: Array<{
+      id?: string;
+    }>;
   };
+  characters?: Array<{
+    id?: string;
+    relationships?: Array<{
+      target?: string;
+    }>;
+  }>;
+  locations?: Array<{
+    id?: string;
+  }>;
   scenes?: MutableScene[];
 }
 
@@ -111,6 +127,149 @@ describe('POST /api/yaml/validate', () => {
       path: 'scenes[0].beats[0].type'
     });
     expect(body.errors[0]?.message).toContain('"inner_voice"');
+  });
+
+  it('reports a precise path for an unknown dialogue speaker reference', async () => {
+    const screenplay = parseSample();
+    const beat = screenplay.scenes?.[0]?.beats?.[1];
+
+    if (!beat) {
+      throw new Error('Sample fixture must include scenes[0].beats[1].');
+    }
+
+    beat.speaker = 'char_missing';
+
+    const { body } = await postValidate(toYaml(screenplay));
+
+    expect(body.valid).toBe(false);
+    expect(body.errors).toContainEqual({
+      path: 'scenes[0].beats[1].speaker',
+      message: '未在 characters 中定义: char_missing'
+    });
+  });
+
+  it('requires speakers for dialogue and inner_voice beats', async () => {
+    const screenplay = parseSample();
+    const dialogueBeat = screenplay.scenes?.[0]?.beats?.[1];
+    const innerVoiceBeat = screenplay.scenes?.[1]?.beats?.[2];
+
+    if (!dialogueBeat || !innerVoiceBeat) {
+      throw new Error('Sample fixture must include dialogue and inner_voice beats.');
+    }
+
+    delete dialogueBeat.speaker;
+    delete innerVoiceBeat.speaker;
+
+    const { body } = await postValidate(toYaml(screenplay));
+
+    expect(body.valid).toBe(false);
+    expect(body.errors).toEqual(
+      expect.arrayContaining([
+        {
+          path: 'scenes[0].beats[1].speaker',
+          message: 'dialogue beat 必须提供 speaker'
+        },
+        {
+          path: 'scenes[1].beats[2].speaker',
+          message: 'inner_voice beat 必须提供 speaker'
+        }
+      ])
+    );
+  });
+
+  it('reports duplicate character, location, and scene ids', async () => {
+    const screenplay = parseSample();
+
+    if (
+      !screenplay.characters?.[0]?.id ||
+      !screenplay.characters[1] ||
+      !screenplay.locations?.[0]?.id ||
+      !screenplay.locations[1] ||
+      !screenplay.scenes?.[0]?.id ||
+      !screenplay.scenes[1]
+    ) {
+      throw new Error('Sample fixture must include duplicate id targets.');
+    }
+
+    screenplay.characters[1].id = screenplay.characters[0].id;
+    screenplay.locations[1].id = screenplay.locations[0].id;
+    screenplay.scenes[1].id = screenplay.scenes[0].id;
+
+    const { body } = await postValidate(toYaml(screenplay));
+
+    expect(body.valid).toBe(false);
+    expect(body.errors).toEqual(
+      expect.arrayContaining([
+        {
+          path: 'characters[1].id',
+          message: 'ID 重复: char_linzhou，首次出现于 characters[0].id'
+        },
+        {
+          path: 'locations[1].id',
+          message: 'ID 重复: loc_old_station，首次出现于 locations[0].id'
+        },
+        {
+          path: 'scenes[1].id',
+          message: 'ID 重复: scene_001，首次出现于 scenes[0].id'
+        }
+      ])
+    );
+  });
+
+  it('warns when a source chapter is not covered by any scene', async () => {
+    const screenplay = parseSample();
+
+    if (!screenplay.scenes?.[2]) {
+      throw new Error('Sample fixture must include scenes[2].');
+    }
+
+    screenplay.scenes[2].source_chapters = ['chapter_002'];
+
+    const { body } = await postValidate(toYaml(screenplay));
+
+    expect(body.valid).toBe(true);
+    expect(body.errors).toEqual([]);
+    expect(body.warnings).toContainEqual({
+      path: 'source.chapters[2].id',
+      message: '该章节未生成任何场景: chapter_003'
+    });
+  });
+
+  it('reports invalid scene location, scene character, source chapter, and relationship references', async () => {
+    const screenplay = parseSample();
+
+    if (!screenplay.characters?.[0]?.relationships?.[0] || !screenplay.scenes?.[0]) {
+      throw new Error('Sample fixture must include relationship and scene references.');
+    }
+
+    screenplay.characters[0].relationships[0].target = 'char_missing';
+    screenplay.scenes[0].location_id = 'loc_missing';
+    screenplay.scenes[0].characters = ['char_missing'];
+    screenplay.scenes[0].source_chapters = ['chapter_missing'];
+
+    const { body } = await postValidate(toYaml(screenplay));
+
+    expect(body.valid).toBe(false);
+    expect(body.errors).toEqual(
+      expect.arrayContaining([
+        {
+          path: 'characters[0].relationships[0].target',
+          message: '未在 characters 中定义: char_missing'
+        },
+        {
+          path: 'scenes[0].location_id',
+          message: '未在 locations 中定义: loc_missing'
+        },
+        {
+          path: 'scenes[0].source_chapters[0]',
+          message: '未在 source.chapters 中定义: chapter_missing'
+        },
+        {
+          path: 'scenes[0].characters[0]',
+          message: '未在 characters 中定义: char_missing'
+        }
+      ])
+    );
   });
 
   it('enforces the minimum source chapter count', async () => {

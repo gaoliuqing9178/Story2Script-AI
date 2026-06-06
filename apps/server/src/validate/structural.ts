@@ -1,7 +1,8 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import type { ErrorObject } from 'ajv';
 import { load } from 'js-yaml';
-import { screenplayJsonSchema, type ValidationError, type ValidationResult } from '@story2script/shared';
+import { screenplayJsonSchema, type Screenplay, type ValidationError, type ValidationResult } from '@story2script/shared';
+import { validateScreenplayReferences } from './reference.js';
 
 const ajv = new Ajv2020({
   allErrors: true,
@@ -31,11 +32,7 @@ export function validateScreenplayYamlStructure(yamlText: string): ValidationRes
   const valid = validateScreenplayStructure(parsed);
 
   if (valid) {
-    return {
-      valid: true,
-      errors: [],
-      warnings: []
-    };
+    return validateScreenplayReferences(parsed as Screenplay);
   }
 
   return {

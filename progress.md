@@ -1,5 +1,46 @@
 # Progress Log
 
+## 2026-06-06 - P1-VALIDATE-002 Application-layer Validation
+
+目标：实现 `feature_list.json` 中的 `P1-VALIDATE-002`，在 AJV structural validation 通过后补齐应用层引用与一致性校验。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/server/src/validate/reference.ts`，检查 scene/source/location/character/relationship/speaker 引用、dialogue/inner_voice 条件 speaker、characters/locations/scenes ID 唯一性，以及章节覆盖 warning。
+- 更新 `apps/server/src/validate/structural.ts`，保持先结构后语义：结构校验失败时只返回结构错误；结构通过后再运行应用层校验。
+- 扩展 `apps/server/tests/yaml-validate-route.test.ts`，通过真实 Express app 覆盖 speaker 引用错误、缺 speaker、重复 ID、章节覆盖 warning，以及 location/source/relationship 等引用错误。
+- 新增 `docs/contracts/P1-VALIDATE-002.md` 与 `docs/qa/P1-VALIDATE-002.md`。
+- 将 `feature_list.json` 中 `P1-VALIDATE-002.passes` 改为 `true`。
+
+明确未做：
+
+- 未实现 YAML repair。
+- 未实现前端编辑器、校验面板、预览或导出。
+- 未修改 `examples/*` demo fixture。
+- 未接入真实 LLM Provider。
+
+验证记录：
+
+- `pnpm --filter @story2script/server test`：当前 shell 找不到 `pnpm`，改用本机路径 `C:\nvm4w\nodejs\pnpm.cmd --filter @story2script/server test` 后通过，server 3 个 test files、13 个 tests 全部通过。
+- `C:\nvm4w\nodejs\pnpm.cmd verify`：通过。
+  - `typecheck`：shared/server/web 全部通过。
+  - `lint`：`eslint .` 通过。
+  - `test`：shared 1 个 Vitest 通过，server 13 个 Vitest 通过，web 无单测且 `--passWithNoTests` 通过。
+  - `build`：shared/server `tsc` 通过，web `vite build` 通过。
+
+状态确认：
+
+- `P1-VALIDATE-002` 已具备 contract、QA 报告、API route 测试、`pnpm verify` 证据和 truth-file 同步，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-05 - P1-VALIDATE-001 AJV Structural Validation
 
 目标：实现 `docs/yaml-schema.md` v1.0 的 AJV 结构校验，让 `POST /api/yaml/validate` 能真实校验必填字段、枚举、数组结构和最小章节数。

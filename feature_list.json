@@ -63,7 +63,7 @@
         "Leave a source chapter unused and verify a chapter coverage warning.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P2-LLM-001",
