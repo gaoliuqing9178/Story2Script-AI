@@ -92,7 +92,7 @@
         "Submit fewer than 3 chapters and verify HTTP 422 TOO_FEW_CHAPTERS.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P3-PIPELINE-002",

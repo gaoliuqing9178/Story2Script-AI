@@ -1,5 +1,62 @@
 # Progress Log
 
+## 2026-06-06 - P3-PIPELINE-001 Chapter Splitting
+
+目标：实现 `feature_list.json` 中的 `P3-PIPELINE-001`，让 `POST /api/chapters/split` 支持中文章节标题、英文 `Chapter` 标题、Markdown 章节标题和 `---chapter---` 分隔符，并在少于 3 章时返回 422。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/server/src/pipeline/split.ts`，实现本地 deterministic chapter splitting，不调用 LLM。
+- 新增 `apps/server/src/routes/chapters.ts`，实现 `POST /api/chapters/split`，并保留 `/api/chapters/analyze` Phase 3 后续占位。
+- 更新 `apps/server/src/routes/index.ts`，挂载 `chaptersRouter`。
+- 新增 `apps/server/tests/chapter-split-route.test.ts`，通过真实 Express app 覆盖中文标题、英文 `Chapter`、Markdown heading、`---chapter---` 前置/居中分隔符、少于 3 章 422、缺少 `text` 400。
+- 新增 `docs/contracts/P3-PIPELINE-001.md`。
+- 新增 `docs/qa/P3-PIPELINE-001.md`。
+- 将 `feature_list.json` 中 `P3-PIPELINE-001.passes` 改为 `true`。
+
+关键实现说明：
+
+- 标题模式下，按行识别中文章节标题、英文 `Chapter` 标题或 Markdown heading 中的章节标题。
+- separator 模式下，只要文本包含 `---chapter---`，就按分隔符切段；兼容“每章前放分隔符”和“章节之间放分隔符”两种输入习惯。
+- 无标题 separator 段会生成稳定标题 `Chapter 1`、`Chapter 2`、`Chapter 3`。
+- 返回章节 ID 固定为 `chapter_001`、`chapter_002`、`chapter_003` 这种顺序格式。
+- `word_count` 当前按去掉空白后的 Unicode code point 数统计，适合中英文混合文本的稳定粗略字数。
+
+明确未做：
+
+- 未实现 `/api/chapters/analyze`。
+- 未实现 screenplay bible、multi-stage generate 或 bounded repair。
+- 未新增前端章节确认 UI。
+- 未修改 `examples/*` demo fixture。
+- 未将 `P3-PIPELINE-002`、`P4-*` 或 `P5-*` 标记为通过。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 4 个 test files、24 个 tests 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' typecheck`：通过，shared/server/web 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过，`eslint .` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- evaluator 子代理 `019e9bd0-8a5b-7a30-ab2c-e05c21b089b9`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173`。
+  - 完成页面 snapshot 和 full-page screenshot 视觉检查。
+  - 在浏览器上下文中通过 `fetch('/api/chapters/split')` 验证四类 fixture 和 422 错误态。
+  - 发现并促成本轮补齐 `---chapter---` 只放在章节之间的兼容边界；补充复核后仍 PASS。
+  - 复跑 server test：4 files / 24 tests passed。
+
+状态确认：
+
+- `P3-PIPELINE-001` 已具备 contract、QA 报告、真实 Express route 测试、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P2-LLM-001 OpenAI-compatible Single-stage Generation
 
 目标：实现 `feature_list.json` 中的 `P2-LLM-001`，让 OpenAI-compatible provider 可以完成单阶段小说转 YAML 生成，并立即返回现有 validator 的校验结果。

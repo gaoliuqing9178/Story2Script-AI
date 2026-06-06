@@ -1,5 +1,48 @@
 # Handoff
 
+## 2026-06-06 Update - P3-PIPELINE-001
+
+`P3-PIPELINE-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+
+本轮已实现：
+
+- `apps/server/src/pipeline/split.ts`：本地章节切分纯函数，不调用 LLM。
+- `apps/server/src/routes/chapters.ts`：`POST /api/chapters/split` 真实路由。
+- `apps/server/src/routes/index.ts`：挂载 `chaptersRouter`。
+- `apps/server/tests/chapter-split-route.test.ts`：真实 Express app route tests，覆盖 7 个用例。
+- `docs/contracts/P3-PIPELINE-001.md`：本轮 contract。
+- `docs/qa/P3-PIPELINE-001.md`：Chrome DevTools MCP evaluator QA 报告。
+
+当前 `/api/chapters/split` 语义：
+
+- 请求体必须提供非空字符串 `text`，否则返回 `400 BAD_REQUEST`。
+- 支持中文章节标题：如 `第一章 雨夜归来`、`第 1 章 雨夜归来`。
+- 支持英文 `Chapter` 标题：如 `Chapter 1 The Return`。
+- 支持 Markdown 标题中的章节标题：如 `# 第一章 雨夜归来`、`## Chapter 2 The Letter`。
+- 支持 `---chapter---` 分隔符：
+  - 每章前置分隔符可以识别。
+  - 章节之间分隔符也可以识别。
+- 返回 `Chapter[]`：`id`、`title`、`order`、`content`、`word_count`。
+- 有效章节少于 3 个时返回 `422 TOO_FEW_CHAPTERS`，message 形如 `至少需要 3 个章节，当前识别到 2 个`。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 4 files / 24 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- evaluator 子代理 `019e9bd0-8a5b-7a30-ab2c-e05c21b089b9`：PASS。
+  - 使用 Chrome DevTools MCP 打开真实页面并截图。
+  - 在浏览器上下文里用 `fetch('/api/chapters/split')` 验证中文、英文、Markdown、`---chapter---`、少于 3 章 422。
+  - 补充复核 `---chapter---` 只放在章节之间的边界，结果 PASS。
+
+下一轮建议：
+
+- 若继续 Phase 3，优先做 `P3-PIPELINE-002`：复用 `splitChapters` 作为第 1 阶段，继续实现 analyze -> bible -> generate -> validate -> bounded repair。
+- 若优先补用户错误提示，可做 `P5-POLISH-001`：把 `TOO_FEW_CHAPTERS` 的友好提示接到前端 UI；不要把它混进 `P3-PIPELINE-001` 回改。
+- 不要回退 `P3-PIPELINE-001.passes`，除非发现上述真实验证路径失败。
+
 ## 2026-06-06 Update - P2-LLM-001
 
 `P2-LLM-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
@@ -12,6 +55,7 @@
 - `apps/server/tests/screenplay-route.test.ts`：真实 Express route + 本地 OpenAI-compatible fake server 覆盖成功、坏 YAML validation、缺小说文本、缺 key、mock 回归。
 - `apps/web/tests/ui/p2-evaluator.spec.ts`：Playwright evaluator 覆盖浏览器编辑小说输入后，请求体带完整 `novel` 的路径。
 - `docs/contracts/P2-LLM-001.md` 与 `docs/qa/P2-LLM-001.md`：本轮 contract 与 QA 证据。
+- 子代理 evaluator `019e9bc2-4016-73c3-954d-062cd3a0b435` 已独立复核 `test:ui`、server test、`verify`，结论 PASS，详情见 `docs/qa/P2-LLM-001.md`。
 
 当前 `/api/screenplay/generate` 的语义：
 
@@ -24,7 +68,7 @@
 
 - `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 3 个 test files、17 个 tests。
 - `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
-- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed；子代理 evaluator 独立复跑同样通过。
 
 下一轮建议：
 
