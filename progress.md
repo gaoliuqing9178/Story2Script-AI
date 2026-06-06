@@ -1,5 +1,72 @@
 # Progress Log
 
+## 2026-06-06 - P3-PIPELINE-002 Multi-stage Pipeline and Bounded Repair
+
+目标：实现 `feature_list.json` 中的 `P3-PIPELINE-002`，让系统可以执行 chapter analysis、screenplay bible generation、scene generation、validation 和 bounded structure repair。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/server/src/pipeline/prompts.ts`：集中维护 analysis、bible、scene generation、repair 的 prompt 与 stage marker。
+- 新增 `apps/server/src/pipeline/types.ts`：定义 `ScreenplayBible`、`RepairResult`、`MultiStagePipelineInput`、`MultiStagePipelineResult`。
+- 新增 `apps/server/src/pipeline/json.ts`：解析 provider 返回的 JSON，兼容 JSON code fence。
+- 新增 `apps/server/src/pipeline/analyze.ts`：实现逐章分析。
+- 新增 `apps/server/src/pipeline/bible.ts`：实现剧本圣经生成。
+- 新增 `apps/server/src/pipeline/multistage.ts`：编排 analyze -> bible -> scene generation -> validation -> repair。
+- 新增 `apps/server/src/pipeline/repair.ts`：实现 YAML repair，修复次数由 `repair_max_retries` 或 `REPAIR_MAX_RETRY` 限制，默认 2，最大钳制到 5。
+- 新增 `apps/server/src/routes/request-utils.ts`：复用 request parsing、adaptation type、chapters/analyses 解析和 repair retry 读取。
+- 更新 `apps/server/src/routes/chapters.ts`：`POST /api/chapters/analyze` 从 501 改为真实分析接口。
+- 更新 `apps/server/src/routes/screenplay.ts`：保留旧单阶段 generate；当请求带 `chapters` 或 `analyses` 时运行 multi-stage pipeline，并返回 `pipeline` metadata。
+- 更新 `apps/server/src/routes/yaml.ts`：`POST /api/yaml/repair` 从 501 改为真实 bounded repair 接口。
+- 更新 `apps/server/src/provider/mock.ts`：默认 mock provider 可按 stage marker 返回章节分析 JSON、剧本圣经 JSON、动态 YAML 和 repair YAML。
+- 更新 `apps/server/src/provider/openai.ts`：通用剥离 provider 返回的 code fence，兼容 JSON/YAML 阶段输出。
+- 新增 `apps/server/tests/pipeline-route.test.ts`：真实 Express app 覆盖 analyze、multi-stage generate、validation red->green repair 和 repair retry 上限。
+- 新增 `docs/contracts/P3-PIPELINE-002.md`。
+- 新增 `docs/qa/P3-PIPELINE-002.md`。
+- 将 `feature_list.json` 中 `P3-PIPELINE-002.passes` 改为 `true`。
+
+关键实现说明：
+
+- `POST /api/screenplay/generate` 向后兼容 P2 单阶段路径：不传 `chapters` 或 `analyses` 时仍走原单阶段 generate。
+- 传入 `chapters` 或 `analyses` 时，`/api/screenplay/generate` 运行 multi-stage pipeline，并返回 `pipeline.analyses`、`pipeline.bible`、`pipeline.initial_validation`、`pipeline.repair_attempts`、`pipeline.max_repair_attempts`。
+- `POST /api/chapters/analyze` 使用 provider 逐章生成 `ChapterAnalysis[]`；默认 mock 不联网。
+- `POST /api/yaml/repair` 会先运行本地 validator，再在 `valid:false` 且 attempts 未超上限时调用 provider 修复。
+- OpenAI-compatible 自动化验证使用本地 fake server，没有调用真实外部 OpenAI API。
+
+明确未做：
+
+- 未实现前端章节确认 UI。
+- 未实现 YAML editor、preview 或 export。
+- 未调用真实外部 OpenAI API。
+- 未修改 `examples/*` demo fixture。
+- 未将 `P4-*` 或 `P5-*` 标记为通过。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 test files、27 个 tests 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过，`eslint .` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- evaluator 子代理 `019e9c16-525e-78a2-9d49-108f9da2b6f7`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173/`。
+  - 完成页面 snapshot 和 full-page screenshot 视觉检查。
+  - 截图路径：`H:\tmp\P3-PIPELINE-002-fullpage.png`。
+  - 在浏览器上下文中通过 `fetch` 验证 5 章 split、analyze、multi-stage generate 和 bounded repair。
+  - `generate` 返回 `validation.valid === true`、`pipeline.analyses.length === 5`、`pipeline.bible`、`pipeline.initial_validation`、数字类型 `repair_attempts`。
+  - 删除 `project.title` 后调用 `/api/yaml/repair`，`repair.attempts === 1` 且 `validation.valid === true`。
+
+状态确认：
+
+- `P3-PIPELINE-002` 已具备 contract、QA 报告、真实 Express route 测试、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P3-PIPELINE-001 Chapter Splitting
 
 目标：实现 `feature_list.json` 中的 `P3-PIPELINE-001`，让 `POST /api/chapters/split` 支持中文章节标题、英文 `Chapter` 标题、Markdown 章节标题和 `---chapter---` 分隔符，并在少于 3 章时返回 422。

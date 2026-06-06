@@ -61,7 +61,7 @@ export class OpenAIProvider implements LLMProvider {
       );
     }
 
-    return unwrapYamlFence(content);
+    return unwrapCodeFence(content);
   }
 }
 
@@ -77,9 +77,9 @@ function parseOpenAIResponse(responseText: string): OpenAIChatResponse {
   }
 }
 
-function unwrapYamlFence(content: string) {
+function unwrapCodeFence(content: string) {
   const trimmed = content.trim();
-  const fenced = /^```(?:yaml|yml)?\s*\r?\n([\s\S]*?)\r?\n```$/i.exec(trimmed);
+  const fenced = /^```[a-zA-Z0-9_-]*\s*\r?\n([\s\S]*?)\r?\n```$/u.exec(trimmed);
 
   return (fenced?.[1] ?? trimmed).trim();
 }

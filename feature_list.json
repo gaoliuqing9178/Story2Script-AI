@@ -107,7 +107,7 @@
         "Verify successful repair turns validation red to green without rewriting story objects.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P4-EDITOR-001",

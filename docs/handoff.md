@@ -1,5 +1,67 @@
 # Handoff
 
+## 2026-06-06 Update - P3-PIPELINE-002
+
+`P3-PIPELINE-002` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+
+本轮已实现：
+
+- `apps/server/src/pipeline/prompts.ts`：analysis、bible、scene generation、repair stage prompts 和 marker。
+- `apps/server/src/pipeline/types.ts`：multi-stage pipeline 与 screenplay bible 类型。
+- `apps/server/src/pipeline/json.ts`：provider JSON 解析和字段读取 helper。
+- `apps/server/src/pipeline/analyze.ts`：逐章分析。
+- `apps/server/src/pipeline/bible.ts`：剧本圣经生成。
+- `apps/server/src/pipeline/multistage.ts`：analysis -> bible -> scene generation -> validation -> repair 编排。
+- `apps/server/src/pipeline/repair.ts`：bounded YAML repair。
+- `apps/server/src/routes/request-utils.ts`：route 入参解析复用。
+- `apps/server/src/routes/chapters.ts`：`POST /api/chapters/analyze` 真实路由。
+- `apps/server/src/routes/screenplay.ts`：`POST /api/screenplay/generate` 支持 multi-stage pipeline，同时保留 P2 单阶段路径。
+- `apps/server/src/routes/yaml.ts`：`POST /api/yaml/repair` 真实 bounded repair 路由。
+- `apps/server/src/provider/mock.ts`：mock provider 支持 analysis/bible/scene-generation/repair stage 输出。
+- `apps/server/src/provider/openai.ts`：通用剥离 code fence，兼容 JSON/YAML 阶段输出。
+- `apps/server/tests/pipeline-route.test.ts`：真实 Express app 覆盖 multi-stage pipeline 与 repair 上限。
+- `docs/contracts/P3-PIPELINE-002.md`：本轮 contract。
+- `docs/qa/P3-PIPELINE-002.md`：Chrome DevTools MCP evaluator QA 报告。
+
+当前 API 语义：
+
+- `POST /api/chapters/analyze`
+  - 请求体必须提供 `chapters: Chapter[]`，否则返回 `400 BAD_REQUEST`。
+  - 返回 `{ analyses: ChapterAnalysis[] }`。
+- `POST /api/screenplay/generate`
+  - 不传 `chapters`/`analyses`：保留 P2 单阶段 generate 行为。
+  - 传入 `chapters` 或 `analyses`：运行 multi-stage pipeline。
+  - 章节数少于 3 个时返回 `422 TOO_FEW_CHAPTERS`。
+  - pipeline response 返回 `yaml`、`validation` 和 `pipeline` metadata：
+    - `analyses`
+    - `bible`
+    - `initial_validation`
+    - `repair_attempts`
+    - `max_repair_attempts`
+- `POST /api/yaml/repair`
+  - 请求体必须提供 `yaml: string`，否则返回 `400 BAD_REQUEST`。
+  - 会先运行本地 validator，再按 `repair_max_retries` 或 `REPAIR_MAX_RETRY` 做 bounded repair。
+  - 默认 repair 上限为 2，最大钳制到 5。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 files / 27 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- evaluator 子代理 `019e9c16-525e-78a2-9d49-108f9da2b6f7`：PASS。
+  - 使用 Chrome DevTools MCP 打开真实页面并截图。
+  - 截图路径：`H:\tmp\P3-PIPELINE-002-fullpage.png`。
+  - 在浏览器上下文里用 `fetch` 验证 5 章 split、analyze、generate、repair。
+  - `generate` 返回 `validation.valid === true`、`pipeline.analyses.length === 5`、`pipeline.bible`、`pipeline.initial_validation`、数字类型 `repair_attempts`。
+  - 删除 `project.title` 后调用 `/api/yaml/repair`，`repair.attempts === 1` 且 `validation.valid === true`。
+
+下一轮建议：
+
+- 若继续 Phase 4，优先做 `P4-EDITOR-001`：把当前 `/api/yaml/validate` 和 `/api/yaml/repair` 接入前端 YAML 编辑体验。
+- 若继续可读输出，做 `P4-PREVIEW-002`：复用 generate 返回的 YAML，渲染 action/dialogue/narration/transition/inner_voice 五类 beat。
+- 不要回退 `P3-PIPELINE-002.passes`，除非发现上述真实验证路径失败。
+
 ## 2026-06-06 Update - P3-PIPELINE-001
 
 `P3-PIPELINE-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。

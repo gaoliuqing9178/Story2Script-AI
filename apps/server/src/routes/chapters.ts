@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { logEvent } from '../logger.js';
+import { createProvider } from '../provider/index.js';
+import { analyzeChapters } from '../pipeline/analyze.js';
 import { splitChapters } from '../pipeline/split.js';
+import { parseChaptersInput } from './request-utils.js';
 
 export const chaptersRouter: Router = Router();
 
@@ -42,17 +45,50 @@ chaptersRouter.post('/split', (req, res) => {
   res.json({ chapters });
 });
 
-chaptersRouter.post('/analyze', (_req, res) => {
-  res.status(501).json({
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Phase 3 will implement chapter analysis. Current harness only verifies API wiring.'
+chaptersRouter.post('/analyze', async (req, res, next) => {
+  try {
+    const chapters = parseChaptersInput((req.body as AnalyzeChaptersRequest).chapters);
+
+    if (!chapters || chapters.length === 0) {
+      res.status(400).json({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'chapters must be a non-empty Chapter[]'
+        }
+      });
+      return;
     }
-  });
+
+    const analyses = await analyzeChapters(chapters, createProvider());
+
+    logEvent('chapters.analyze.completed', {
+      provider: process.env.LLM_PROVIDER === 'openai' ? 'openai' : 'mock',
+      chapters: chapters.length
+    });
+
+    res.json({ analyses });
+  } catch (error) {
+    if (process.env.LLM_PROVIDER === 'openai') {
+      const message = error instanceof Error ? error.message : 'LLM provider failed.';
+      res.status(502).json({
+        error: {
+          code: 'LLM_UNAVAILABLE',
+          message
+        }
+      });
+      return;
+    }
+
+    next(error);
+  }
 });
 
 interface SplitChaptersRequest {
   text?: unknown;
+}
+
+interface AnalyzeChaptersRequest {
+  chapters?: unknown;
 }
 
 function getRequestText(requestBody: SplitChaptersRequest) {
