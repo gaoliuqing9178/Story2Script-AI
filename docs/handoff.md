@@ -1,5 +1,51 @@
 # Handoff
 
+## 2026-06-06 Update - P4-EDITOR-001
+
+`P4-EDITOR-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+
+本轮已实现：
+
+- `apps/web/src/api/screenplay.ts`：新增 `validateYaml(yaml)`，调用 `POST /api/yaml/validate`；生成 API 失败时优先读取后端 error message。
+- `apps/web/src/App.tsx`：右侧 YAML 输出改为可编辑 textarea；新增 validation 状态、350ms 防抖校验、错误/警告面板；编辑期间显示 `校验中...`，校验完成后展示精确 path + message。
+- `apps/web/tests/ui/smoke.spec.ts`：适配 YAML textarea value。
+- `apps/web/tests/ui/p2-evaluator.spec.ts`：用明确 aria label 定位小说输入和生成按钮，避免新增 textarea 后定位歧义。
+- `apps/web/tests/ui/p4-editor.spec.ts`：覆盖生成 YAML、直接编辑、删除 `project.title`、防抖校验和精确错误展示。
+- `docs/contracts/P4-EDITOR-001.md`：本轮 contract。
+- `docs/qa/P4-EDITOR-001.md`：Chrome DevTools MCP evaluator QA 报告。
+
+当前前端语义：
+
+- 点击“用样例生成”后，`POST /api/screenplay/generate` 返回的 YAML 会进入右侧 `YAML 编辑器`。
+- `yaml` textarea value 是前端 YAML 的事实源。
+- YAML 非空时，编辑后 350ms 防抖调用 `POST /api/yaml/validate`。
+- 校验面板展示：
+  - 空态：未校验 / 暂无 YAML。
+  - 进行中：`校验中...`。
+  - 通过：`校验通过` 和 `结构与引用校验通过。`
+  - 失败：逐条显示 `errors[].path` 和 `errors[].message`。
+  - warnings：逐条显示 `warnings[].path` 和 `warnings[].message`。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 3 passed。
+- evaluator 子代理 `019e9d01-64e9-7390-b4ea-1365e1734420`：PASS。
+  - 使用 Chrome DevTools MCP 打开真实页面并截图。
+  - 截图路径：`H:\tmp\P4-EDITOR-001-fullpage.png`。
+  - 点击“用样例生成”后，YAML 编辑器出现 mock YAML 且校验结果最终通过。
+  - 删除 `  title: "雨夜归来"` 后，防抖完成显示 `project.title` 和 `必填字段缺失`。
+  - 视觉检查 PASS；无明显错位、遮挡、按钮截断、文字溢出或横向滚动。
+
+下一轮建议：
+
+- 若继续 Phase 4，优先做 `P4-PREVIEW-002`：复用当前 YAML editor 的事实源，在 validation pass 时渲染 action/dialogue/narration/transition/inner_voice 五类 beat。
+- 若优先补可交付导出，做 `P4-EXPORT-003`；不要把 preview/export 混进 `P4-EDITOR-001` 回改。
+- 不要回退 `P4-EDITOR-001.passes`，除非发现上述真实验证路径失败。
+
 ## 2026-06-06 Update - P3-PIPELINE-002
 
 `P3-PIPELINE-002` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
@@ -166,7 +212,7 @@
 
 ## 当前状态
 
-`P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002` 与 `P2-LLM-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+`P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002` 与 `P4-EDITOR-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
 
 当前已证明：Web app 可以通过后端 `POST /api/screenplay/generate` 调用默认 `MockProvider`，读取 `examples/screenplay-sample.yaml`，并在页面展示包含 `schema_version`、`project`、`source`、`characters`、`locations`、`scenes` 的 YAML。
 
@@ -174,13 +220,15 @@
 
 当前还已证明：`POST /api/yaml/validate` 会解析 YAML，并用 AJV 按 `docs/yaml-schema.md` v1.0 的结构契约校验必填字段、枚举、数组结构和 `source.chapters` 至少 3 章；结构通过后会继续执行应用层 reference validation，覆盖引用完整性、条件 speaker、ID 唯一和章节覆盖 warning。`POST /api/screenplay/generate` 现在会在 mock 和 openai 两种 provider 模式下返回 YAML 的完整校验结果。
 
+当前前端已证明：页面右侧 YAML editor 支持直接编辑；编辑后会 350ms 防抖调用 `/api/yaml/validate`；校验面板能显示精确错误路径，例如删除 `project.title` 后显示 `project.title` 和 `必填字段缺失`。
+
 工作流已更新：generator 每轮只做简单验证；收尾前调用 evaluator 子代理，由 evaluator 使用 Chrome DevTools MCP 做真实交互验证，并截屏进行视觉检查。涉及用户路径的 feature 只有 evaluator QA 放行后才能置 `passes:true`。
 
 ## 已搭好的地基
 
 - 根 `AGENTS.md`：项目地图、开工阅读顺序、完成标准。
 - `docs/` 补全：开发流程、质量说明、决策记录、交接、排障、contract/QA 模板。
-- `feature_list.json`：Phase 0-5 结构化进度表，当前 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001` 为 `passes:true`。
+- `feature_list.json`：Phase 0-5 结构化进度表，当前 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001` 为 `passes:true`。
 - pnpm workspace：`packages/shared`、`apps/server`、`apps/web`。
 - MockProvider：默认读取 `examples/screenplay-sample.yaml`。
 - OpenAIProvider：读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，调用 OpenAI-compatible `/chat/completions`，从 `choices[0].message.content` 提取 YAML。
@@ -193,6 +241,7 @@
 - `apps/server/tests/yaml-validate-route.test.ts`：覆盖有效 fixture、缺字段、枚举错误、最小章节数、引用错误、条件 speaker、重复 ID 和章节覆盖 warning。
 - `apps/server/tests/screenplay-route.test.ts`：覆盖 mock generate、openai-compatible generate、fenced YAML 剥离、即时 validation、坏 YAML 精确错误、缺小说文本和缺 key。
 - `apps/web/tests/ui/p2-evaluator.spec.ts`：覆盖前端把编辑后的小说全文作为 `novel` 传给 generate API。
+- `apps/web/tests/ui/p4-editor.spec.ts`：覆盖直接编辑 YAML、删除 `project.title`、防抖校验和精确错误展示。
 - `docs/contracts/P0-E2E-001.md`：mock E2E contract。
 - `docs/qa/P0-E2E-001.md`：mock E2E QA PASS 证据。
 - `docs/contracts/P0-INFRA-002.md`：开发 harness contract。
@@ -203,10 +252,16 @@
 - `docs/qa/P1-VALIDATE-002.md`：Application-layer validation QA PASS 证据。
 - `docs/contracts/P2-LLM-001.md`：OpenAI-compatible single-stage generation contract。
 - `docs/qa/P2-LLM-001.md`：OpenAI-compatible single-stage generation QA PASS 证据。
+- `docs/contracts/P3-PIPELINE-001.md`：chapter split contract。
+- `docs/qa/P3-PIPELINE-001.md`：chapter split QA PASS 证据。
+- `docs/contracts/P3-PIPELINE-002.md`：multi-stage pipeline contract。
+- `docs/qa/P3-PIPELINE-002.md`：multi-stage pipeline QA PASS 证据。
+- `docs/contracts/P4-EDITOR-001.md`：YAML editor validation contract。
+- `docs/qa/P4-EDITOR-001.md`：YAML editor validation QA PASS 证据。
 
 ## 下一个 coding agent 从哪里开始
 
-建议从 `P3-PIPELINE-001` 或 `P3-PIPELINE-002` 开始。`P3-PIPELINE-001` 的起点是 chapter split 路由与少于 3 章的 422 拦截；`P3-PIPELINE-002` 的起点是多阶段 pipeline 与 bounded repair。
+建议从 `P4-PREVIEW-002` 开始：复用当前 YAML editor 的事实源，在 validation pass 时渲染 action、dialogue、narration、transition、inner_voice 五类 beat。若优先做可交付文件，则从 `P4-EXPORT-003` 开始。
 
 ## 已知风险
 
@@ -216,9 +271,10 @@
 
 ## 验证记录
 
-- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过。覆盖 typecheck、lint、Vitest、build；server Vitest 覆盖 mock YAML、`/api/yaml/validate`、openai-compatible provider 成功与错误路径。
-- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：本轮通过，server 3 个 test files、17 个 tests。
-- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：本轮通过。Playwright Chromium 2 passed，真实浏览器覆盖 mock route smoke 与 P2 evaluator 请求体断言。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：本轮通过。覆盖 typecheck、lint、Vitest、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：本轮通过。Playwright Chromium 3 passed，真实浏览器覆盖 mock route smoke、P2 请求体断言和 P4 editor validation。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：本轮通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：本轮通过，web 无 Vitest 单测且 `--passWithNoTests` 通过。
 - `powershell.exe -ExecutionPolicy Bypass -File .\init.ps1`：上一轮通过。脚本会 install、verify、安装 Playwright Chromium、跑 UI smoke。本轮未重复运行。
 - `node scripts/read-dev-logs.js`：上一轮通过。能读取 `logs/server-dev.jsonl` 中的结构化 JSON 行。
 - `pnpm install`：上一轮通过，lockfile up to date；本轮通过 `pnpm add` 添加 server 依赖并更新 lockfile。
@@ -226,10 +282,12 @@
 
 ## 重要收尾说明
 
-- `feature_list.json` 当前只有 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002` 与 `P2-LLM-001` 为 `passes:true`，其他 feature 仍为 `false`。
+- `feature_list.json` 当前只有 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002` 与 `P4-EDITOR-001` 为 `passes:true`，其他 feature 仍为 `false`。
 - `P0-E2E-001` 已有 contract/QA 证据，可以作为 Phase 0 mock 端到端基线。
 - `P0-INFRA-002` 已有 contract/QA 证据，可以作为仓库开发 harness 基线。
 - `P1-VALIDATE-001` 已有 contract/QA 证据，可以作为 Phase 1 结构校验基线。
 - `P1-VALIDATE-002` 已有 contract/QA 证据，可以作为 Phase 1 应用层校验基线。
 - `P2-LLM-001` 已有 contract/QA 证据，可以作为 Phase 2 OpenAI-compatible provider 基线。
+- `P3-PIPELINE-001` 与 `P3-PIPELINE-002` 已有 contract/QA 证据，可以作为 Phase 3 pipeline 基线。
+- `P4-EDITOR-001` 已有 contract/QA 证据，可以作为 Phase 4 YAML 编辑与校验基线。
 - Playwright 的 webServer 必须从仓库根启动 `pnpm dev`，配置里已经显式设置 `cwd`。

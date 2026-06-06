@@ -1,5 +1,62 @@
 # Progress Log
 
+## 2026-06-06 - P4-EDITOR-001 YAML Editor and Debounced Validation
+
+目标：实现 `feature_list.json` 中的 `P4-EDITOR-001`，让前端 YAML editor 支持直接编辑、编辑后防抖校验，并在校验面板展示精确 validation error path。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/web/src/api/screenplay.ts`：新增 `validateYaml(yaml)`，调用 `POST /api/yaml/validate`；生成 API 失败时优先读取后端 error message。
+- 更新 `apps/web/src/App.tsx`：将右侧 YAML 输出改为可编辑 textarea；新增 validation 状态、防抖校验、错误/警告面板；生成后接收初始 validation，编辑后以 `/api/yaml/validate` 为准。
+- 更新 `apps/web/tests/ui/smoke.spec.ts`：适配 YAML 输出从 `<pre>` 改为 textarea value。
+- 更新 `apps/web/tests/ui/p2-evaluator.spec.ts`：使用明确 aria label 定位小说输入和生成按钮，避免被新增 YAML textarea 干扰。
+- 新增 `apps/web/tests/ui/p4-editor.spec.ts`：覆盖生成 YAML、直接编辑、删除 `project.title`、等待防抖校验并显示 `project.title` / `必填字段缺失`。
+- 新增 `docs/contracts/P4-EDITOR-001.md`。
+- 新增 `docs/qa/P4-EDITOR-001.md`。
+- 将 `feature_list.json` 中 `P4-EDITOR-001.passes` 改为 `true`。
+
+关键实现说明：
+
+- 本轮没有引入 Monaco 或 CodeMirror，先用原生 textarea 完成可直接编辑和校验闭环，避免扩大依赖面。
+- 防抖间隔为 350ms；编辑期间显示 `校验中...`，防抖完成后展示后端返回的 `ValidationResult`。
+- 校验错误逐条展示 `path` 和 `message`，例如 `project.title` / `必填字段缺失`。
+- `yaml` textarea value 是前端 YAML 的事实源；预览和导出仍未实现。
+
+明确未做：
+
+- 未实现 `P4-PREVIEW-002` 的剧本预览。
+- 未实现 `P4-EXPORT-003` 的 YAML / Markdown 导出。
+- 未修改 `examples/*` demo fixture。
+- 未放宽后端 validator 规则。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 无 Vitest 单测且 `--passWithNoTests` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 3 passed。
+- evaluator 子代理 `019e9d01-64e9-7390-b4ea-1365e1734420`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173`。
+  - 完成真实页面交互和 full-page screenshot。
+  - 截图路径：`H:\tmp\P4-EDITOR-001-fullpage.png`。
+  - 点击“用样例生成”后，YAML 编辑器出现 mock YAML，校验结果最终通过。
+  - 删除 `  title: "雨夜归来"` 后，防抖期间只显示 `校验中...`，防抖完成后显示 `project.title` 和 `必填字段缺失`。
+  - 视觉检查 PASS：页面非空白，无明显错位、遮挡、按钮截断、文字溢出或横向滚动。
+
+状态确认：
+
+- `P4-EDITOR-001` 已具备 contract、QA 报告、Playwright 覆盖、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P3-PIPELINE-002 Multi-stage Pipeline and Bounded Repair
 
 目标：实现 `feature_list.json` 中的 `P3-PIPELINE-002`，让系统可以执行 chapter analysis、screenplay bible generation、scene generation、validation 和 bounded structure repair。

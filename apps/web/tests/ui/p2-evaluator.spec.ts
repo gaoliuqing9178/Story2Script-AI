@@ -40,15 +40,15 @@ test('evaluator: sends edited novel text to screenplay generate API', async ({ p
   });
 
   await page.goto('/');
-  await page.locator('textarea').fill(evaluatorNovel);
+  await page.getByRole('textbox', { name: '小说输入' }).fill(evaluatorNovel);
 
   const requestPromise = page.waitForRequest('**/api/screenplay/generate');
-  await page.getByRole('button').click();
+  await page.getByRole('button', { name: '用样例生成' }).click();
   const request = await requestPromise;
 
   expect(request.postDataJSON()).toMatchObject({
     novel: evaluatorNovel
   });
 
-  await expect(page.getByTestId('yaml-output')).toContainText('title: "Evaluator Fixture"');
+  await expect(page.getByTestId('yaml-output')).toHaveValue(/title: "Evaluator Fixture"/);
 });

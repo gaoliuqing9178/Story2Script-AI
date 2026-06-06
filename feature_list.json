@@ -122,7 +122,7 @@
         "Break project.title and verify the validation panel shows a precise path.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P4-PREVIEW-002",
