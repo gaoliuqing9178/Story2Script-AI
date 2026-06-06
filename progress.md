@@ -1,5 +1,51 @@
 # Progress Log
 
+## 2026-06-06 - P2-LLM-001 OpenAI-compatible Single-stage Generation
+
+目标：实现 `feature_list.json` 中的 `P2-LLM-001`，让 OpenAI-compatible provider 可以完成单阶段小说转 YAML 生成，并立即返回现有 validator 的校验结果。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/server/src/provider/openai.ts`，实现 OpenAI-compatible `/chat/completions` 调用，读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，并从 `choices[0].message.content` 提取 YAML。
+- 更新 `apps/server/src/routes/screenplay.ts`，在 `LLM_PROVIDER=openai` 时要求传入小说文本，构造单阶段 novel-to-YAML prompt，provider 返回后立即调用 `validateScreenplayYamlStructure`。
+- 更新 `apps/web/src/api/screenplay.ts` 与 `apps/web/src/App.tsx`，让已有小说输入框内容作为 `novel` 传给 generate API；mock 模式继续忽略输入并返回固定 fixture。
+- 扩展 `apps/server/tests/screenplay-route.test.ts`，通过真实 Express app 和本地 OpenAI-compatible fake server 覆盖 openai 成功路径、fenced YAML 剥离、即时 validation、坏 YAML 精确错误、缺小说文本、缺 key 和 mock 回归。
+- 新增 `apps/web/tests/ui/p2-evaluator.spec.ts`，通过 Playwright 在浏览器中编辑小说输入，拦截 generate API，并断言请求体包含完整 `novel`。
+- 新增 `docs/contracts/P2-LLM-001.md` 与 `docs/qa/P2-LLM-001.md`。
+- 将 `feature_list.json` 中 `P2-LLM-001.passes` 改为 `true`。
+
+明确未做：
+
+- 未调用真实外部 OpenAI API；本轮不依赖真实 key、余额、限流或网络可用性。
+- 未创建或提交 `.env`。
+- 未实现 Phase 3 多阶段 pipeline、chapter split、YAML repair。
+- 未重做前端 UI 结构或 mock-first 文案。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 3 个 test files、17 个 tests 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' typecheck`：通过，shared/server/web 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过，`eslint .` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过。
+  - `typecheck`：shared/server/web 全部通过。
+  - `lint`：`eslint .` 通过。
+  - `test`：shared 1 个 Vitest 通过，server 17 个 Vitest 通过，web 无单测且 `--passWithNoTests` 通过。
+  - `build`：shared/server `tsc` 通过，web `vite build` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed，覆盖 mock backend smoke 与 P2 evaluator 请求体断言。
+
+状态确认：
+
+- `P2-LLM-001` 已具备 contract、QA 报告、真实 Express route 测试、本地 OpenAI-compatible provider 契约验证、mock 回归验证、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P1-VALIDATE-002 Application-layer Validation
 
 目标：实现 `feature_list.json` 中的 `P1-VALIDATE-002`，在 AJV structural validation 通过后补齐应用层引用与一致性校验。

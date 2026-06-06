@@ -78,7 +78,7 @@
         "Verify the response includes yaml and validation with either valid:true or precise errors.",
         "Switch back to LLM_PROVIDER=mock and verify mock flow still works."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P3-PIPELINE-001",

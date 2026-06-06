@@ -5,13 +5,15 @@ export interface GenerateScreenplayResponse {
   validation: ValidationResult;
 }
 
-export async function generateMockScreenplay(): Promise<GenerateScreenplayResponse> {
+export async function generateMockScreenplay(novelText: string): Promise<GenerateScreenplayResponse> {
   const response = await fetch('/api/screenplay/generate', {
     method: 'POST',
     headers: {
       'content-type': 'application/json'
     },
-    body: JSON.stringify({})
+    body: JSON.stringify({
+      novel: novelText
+    })
   });
 
   if (!response.ok) {
