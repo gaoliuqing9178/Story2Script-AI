@@ -24,7 +24,7 @@ export function App() {
     setError('');
 
     try {
-      const result = await generateMockScreenplay();
+      const result = await generateMockScreenplay(novelText);
       setYaml(result.yaml);
       setStatus('idle');
     } catch (cause) {
