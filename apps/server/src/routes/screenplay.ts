@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createProvider } from '../provider/index.js';
 import { logEvent } from '../logger.js';
+import { validateScreenplayYamlStructure } from '../validate/structural.js';
 
 export const screenplayRouter: Router = Router();
 
@@ -18,18 +19,11 @@ screenplayRouter.post('/generate', async (_req, res, next) => {
       bytes: Buffer.byteLength(yaml, 'utf8')
     });
 
+    const validation = validateScreenplayYamlStructure(yaml);
+
     res.json({
       yaml,
-      validation: {
-        valid: false,
-        errors: [],
-        warnings: [
-          {
-            path: '(harness)',
-            message: 'Validation is not implemented until Phase 1; this response only confirms the mock fixture reached the API.'
-          }
-        ]
-      }
+      validation
     });
   } catch (error) {
     next(error);

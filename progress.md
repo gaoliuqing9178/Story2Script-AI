@@ -1,5 +1,54 @@
 # Progress Log
 
+## 2026-06-05 - P1-VALIDATE-001 AJV Structural Validation
+
+目标：实现 `docs/yaml-schema.md` v1.0 的 AJV 结构校验，让 `POST /api/yaml/validate` 能真实校验必填字段、枚举、数组结构和最小章节数。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/server/src/validate/structural.ts`，使用 AJV 2020 校验 `packages/shared/src/schema.ts` 的 screenplay JSON Schema。
+- 新增 `apps/server/src/routes/yaml.ts`，实现 `POST /api/yaml/validate`，并保留 `/api/yaml/repair` 的 Phase 3 占位。
+- 更新 `apps/server/src/routes/index.ts`，挂载 `yamlRouter`。
+- 更新 `apps/server/src/routes/screenplay.ts`，让 mock generate 返回真实结构校验结果，不再返回 Phase 1 未实现占位 warning。
+- 新增 `apps/server/tests/yaml-validate-route.test.ts`，通过真实 Express app 覆盖 valid fixture、缺 `schema_version`、缺 `project.title`、非法 beat enum、少于 3 章和缺失 YAML 字符串入参。
+- 更新 `apps/server/tests/screenplay-route.test.ts`，断言 mock fixture 的结构校验结果为 `valid:true`。
+- 为 server 添加 `ajv` 与 `@story2script/shared` workspace 依赖，并调整 TS 配置，使 server 能按工程文档使用 shared 契约。
+- 新增 `docs/contracts/P1-VALIDATE-001.md` 与 `docs/qa/P1-VALIDATE-001.md`。
+- 将 `feature_list.json` 中 `P1-VALIDATE-001.passes` 改为 `true`。
+
+明确未做：
+
+- 未实现应用层引用校验、条件 speaker、ID 唯一或章节覆盖 warning，这些属于 `P1-VALIDATE-002`。
+- 未实现 YAML repair、前端编辑器、校验面板、预览或导出。
+- 未接入真实 OpenAI Provider。
+
+验证记录：
+
+- `pnpm --filter @story2script/server test`：通过，server 3 个 test files、8 个 tests 全部通过。
+- `pnpm build`：通过，shared/server/web 全部 build 通过。
+- `pnpm verify`：通过。
+  - `typecheck`：`packages/shared`、`apps/server`、`apps/web` 全部通过。
+  - `lint`：`eslint .` 通过。
+  - `test`：shared 1 个 Vitest 通过；server 8 个 Vitest 通过；web 无单测且 `--passWithNoTests` 通过。
+  - `build`：shared/server `tsc` 通过；web `vite build` 通过。
+
+状态确认：
+
+- `P1-VALIDATE-001` 已具备 contract、QA 报告、API route 测试、结构错误路径断言和 `pnpm verify` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
+下一步：
+
+- 继续推进 `P1-VALIDATE-002`，在结构校验通过后补应用层引用与一致性校验。
+
 ## 2026-06-05 - P0-INFRA-002 Development Harness Verification
 
 目标：正式验收仓库开发 harness，让 repository scripts、TypeScript、ESLint、Vitest、Playwright 和结构化日志形成可重复的本地验证闭环。

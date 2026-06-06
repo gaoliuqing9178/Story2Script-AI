@@ -3,7 +3,11 @@
   "compilerOptions": {
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@story2script/shared": ["../../packages/shared/dist/index.d.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["tests"]

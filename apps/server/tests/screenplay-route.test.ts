@@ -35,7 +35,7 @@ describe('POST /api/screenplay/generate', () => {
     });
     const body = (await response.json()) as {
       yaml: string;
-      validation: { warnings: { path: string; message: string }[] };
+      validation: { valid: boolean; errors: unknown[]; warnings: unknown[] };
     };
     const parsed = load(body.yaml) as {
       schema_version?: string;
@@ -55,6 +55,10 @@ describe('POST /api/screenplay/generate', () => {
     expect(parsed.characters?.length).toBeGreaterThan(0);
     expect(parsed.locations?.length).toBeGreaterThan(0);
     expect(parsed.scenes?.length).toBeGreaterThan(0);
-    expect(body.validation.warnings[0]?.message).toContain('Validation is not implemented until Phase 1');
+    expect(body.validation).toEqual({
+      valid: true,
+      errors: [],
+      warnings: []
+    });
   });
 });
