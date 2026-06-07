@@ -26,7 +26,7 @@
 | 后端 | Node.js 20 + Express + TypeScript | 简单稳定，团队熟悉 |
 | 校验 | `ajv` + `ajv-formats` | JSON Schema 结构校验 |
 | YAML（后端） | `js-yaml` | 解析 / 序列化 |
-| LLM | OpenAI-compatible Chat Completions | 通过 Provider 层封装，可替换 |
+| LLM | OpenAI-compatible Responses API | 通过 Provider 层封装，可替换 |
 | 测试 | `vitest` | 前后端共用一套 |
 | 包管理 | pnpm workspace（monorepo） | 前后端共享类型 |
 
@@ -209,7 +209,8 @@ export function createProvider(): LLMProvider {
 ```
 
 - `MockProvider`：根据当前阶段返回写死的合法产物（章节分析 JSON / 剧本 YAML）。**断网、限流、欠费时主流程不中断，是 demo 的兜底命脉。**
-- `OpenAIProvider`：调用 OpenAI-compatible `/chat/completions`，读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。
+- `OpenAIProvider`：调用 OpenAI-compatible `/responses`，读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，从 `output_text` 或 `output[].content[].text` 提取文本。
+- Provider 同时提供 `stream()`：OpenAI 模式会带 `stream: true` 并解析 Responses SSE `response.output_text.delta`；mock 模式会分块产出文本，用于本地真实 HTTP streaming 和 UI 自动化测试。
 
 > 设计原因：Provider 是唯一与外部不确定性耦合的点。把它隔离成一层，既能换模型，也能在测试与演示中用 mock 完全绕开网络。
 
@@ -246,6 +247,8 @@ export function createProvider(): LLMProvider {
 - 阶段 2 逐章**并发**（`Promise.all`），缩短长文本耗时。
 - 阶段 4 完成后**立即**走阶段 5；若不通过，自动进入阶段 6，最多重试 N 次（默认 2），仍失败则把最后一次结果与错误一并返回前端，由人工编辑兜底。
 - 修复 prompt 严格约束：只返回 YAML、不新增无依据剧情、保留既有人物/地点/场景、只修字段缺失/错误引用/枚举/缩进。
+- 前端主生成路径调用 `/api/screenplay/generate/stream`，以 NDJSON 事件返回 `status`、`yaml_delta`、`yaml_snapshot`、`validation` 和 `done`。旧 `/api/screenplay/generate` JSON 契约保留，供兼容和非流式调用使用。
+- 模型返回 YAML 可解析时，后端会在校验前做窄范围规范化：缺失 `project.language` 时补为 `zh-CN`，缺失 `project.source_type` 时补为 `novel`，缺失 `project.adaptation_type` 时补为当前请求类型。
 
 ### 6.4 校验器（系统事实标准）
 

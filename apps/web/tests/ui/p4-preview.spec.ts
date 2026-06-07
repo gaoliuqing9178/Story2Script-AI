@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('preview renders all screenplay beat types and pauses when validation fails', async ({ page }) => {
-  await page.goto('/');
-
-  await page.getByRole('button', { name: '用样例生成' }).click();
+  await page.goto('/demo');
 
   const preview = page.getByTestId('screenplay-preview');
   await expect(preview).toContainText('第 1 场 雨夜归来');
@@ -22,7 +20,7 @@ test('preview renders all screenplay beat types and pauses when validation fails
 
   const editor = page.getByRole('textbox', { name: 'YAML 编辑器' });
   const originalYaml = await editor.inputValue();
-  const brokenYaml = originalYaml.replace(/\r?\n {2}title: "雨夜归来"\r?\n/, '\n');
+  const brokenYaml = originalYaml.replace(/\r?\n {2}title: .+\r?\n/, '\n');
 
   await editor.fill(brokenYaml);
 

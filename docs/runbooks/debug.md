@@ -1,5 +1,16 @@
 # Debug Runbook
 
+## OpenAI-compatible 上游 502/524
+
+现象：前端生成失败，页面或日志里出现 `LLM_UNAVAILABLE`、`status_code=502`、`Upstream request failed`、`HTTP 524` 或 Cloudflare HTML。
+
+处理：
+1. 先看 `logs/server-dev.jsonl`，确认 `server.started` 里的 `provider`。如果是 `provider:"openai"`，说明已经不是 mock 回退。
+2. 搜索 `screenplay.generate.provider_failed`，看 message 里的上游 HTTP 状态。Story2Script 本地会按契约把 provider 失败包装为 `/generate` HTTP `502`。
+3. 如果 message 是 `OpenAI-compatible request failed with HTTP 502 (upstream status_code=502): Upstream request failed`，优先检查 `OPENAI_BASE_URL` 指向的外部网关、模型名、key 权限和上游服务健康。
+4. 如果 message 是 `HTTP 524` 或 `HTML error page: 524: A timeout occurred`，优先检查外部网关超时、Cloudflare/反代超时和上游模型响应耗时。
+5. 不要在 `LLM_PROVIDER=openai` 下自动切回 mock；需要演示稳定性时再手动切 `LLM_PROVIDER=mock`，避免掩盖真实接入问题。
+
 ## LLM 调用失败
 
 现象：生成接口返回 `LLM_UNAVAILABLE` 或 OpenAIProvider 报错。

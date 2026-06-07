@@ -47,6 +47,31 @@ export class MockProvider implements LLMProvider {
     const samplePath = findRepoFile('examples/screenplay-sample.yaml');
     return readFile(samplePath, 'utf8');
   }
+
+  async *stream(input: ProviderRequest): AsyncIterable<string> {
+    const text = await this.complete(input);
+
+    for (const chunk of chunkText(text, 180)) {
+      yield chunk;
+      await waitForStreamFrame();
+    }
+  }
+}
+
+function chunkText(text: string, size: number) {
+  const chunks: string[] = [];
+
+  for (let index = 0; index < text.length; index += size) {
+    chunks.push(text.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+function waitForStreamFrame() {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 8);
+  });
 }
 
 function buildMockAnalysis(chapter: Chapter): ChapterAnalysis {

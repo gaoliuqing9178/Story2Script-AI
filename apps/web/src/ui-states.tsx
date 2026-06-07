@@ -91,7 +91,8 @@ export function getGenerateErrorMessage(cause: unknown, phase: 'checking' | 'gen
   }
 
   const message = cause instanceof Error ? cause.message : '生成请求失败';
-  const phaseLabel = phase === 'checking' ? '章节预检阶段失败（/api/chapters/split）' : '剧本生成阶段失败（/api/screenplay/generate）';
+  const phaseLabel =
+    phase === 'checking' ? '章节预检阶段失败（/api/chapters/split）' : '剧本生成阶段失败（/api/screenplay/generate/stream）';
 
   return `${phaseLabel}：${message}`;
 }

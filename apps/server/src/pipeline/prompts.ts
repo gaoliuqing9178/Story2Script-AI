@@ -14,7 +14,8 @@ export function buildChapterAnalysisPrompt(chapter: Chapter) {
       STAGE_MARKERS.analysis,
       '你是 Story2Script AI 的章节分析助手。',
       '只返回 JSON，不要解释，不要 Markdown 代码围栏。',
-      'JSON 必须包含 chapter_id、summary、characters、locations、key_events、conflicts、adaptation_notes。'
+      'JSON 必须包含 chapter_id、summary、characters、locations、key_events、conflicts、adaptation_notes。',
+      'characters、locations、key_events、conflicts、adaptation_notes 必须全部是 string[]，不要返回对象数组。'
     ].join('\n'),
     user: [
       '请分析下面章节，为后续剧本改编提供稳定中间结果。',
@@ -32,7 +33,9 @@ export function buildBiblePrompt(analyses: ChapterAnalysis[]) {
       STAGE_MARKERS.bible,
       '你是 Story2Script AI 的剧本圣经整理助手。',
       '只返回 JSON，不要解释，不要 Markdown 代码围栏。',
-      'JSON 必须包含 logline、theme、characters、locations、timeline、main_conflict、adaptation_principles。'
+      'JSON 必须包含 logline、theme、characters、locations、timeline、main_conflict、adaptation_principles。',
+      'logline、theme、main_conflict 必须是非空 string；timeline、adaptation_principles 必须是 string[]。',
+      'characters 必须是对象数组，每项至少包含 id、name、role；locations 必须是对象数组，每项至少包含 id、name。'
     ].join('\n'),
     user: [
       '请根据逐章分析结果，统一人物、地点、主题、时间线和主线矛盾。',
@@ -58,6 +61,7 @@ export function buildSceneGenerationPrompt(input: {
       '只返回 YAML 正文，不要解释，不要 Markdown 代码围栏。',
       'YAML 必须符合 schema_version "1.0"，顶层必须包含 schema_version、project、source、characters、locations、scenes。',
       'project.source_type 固定为 novel；project.adaptation_type 必须使用请求中的改编类型。',
+      'project.language 必须固定写为 "zh-CN"，不要省略，不要写成中文、Chinese、zh 或其他值。',
       'source.chapters 必须覆盖输入章节；scenes 必须至少引用每个 source chapter 一次。',
       'characters、locations、scenes 使用稳定英文 id；所有引用必须指向已定义对象。',
       'dialogue 与 inner_voice beat 必须提供 speaker，speaker 必须引用 characters 中已定义的角色 id。',
@@ -89,6 +93,7 @@ export function buildRepairPrompt(input: { yaml: string; errors: ValidationError
       '你是 Story2Script AI 的 YAML 结构修复助手。',
       '只返回 YAML 正文，不要解释，不要 Markdown 代码围栏。',
       '只修复结构问题、缺失字段、错误引用、枚举值和缩进。',
+      '如果 project.language 缺失或为空，必须补为 "zh-CN"。',
       '不要重写剧情，不要删除或替换既有人物、地点、场景和来源章节。',
       '修复后必须符合 schema_version "1.0" 的剧本 YAML 契约。'
     ].join('\n'),

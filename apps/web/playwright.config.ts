@@ -22,6 +22,9 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     cwd: repoRoot,
+    env: {
+      LLM_PROVIDER: 'mock'
+    },
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: false,
     timeout: 120_000

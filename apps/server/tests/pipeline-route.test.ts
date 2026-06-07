@@ -176,13 +176,14 @@ async function startPipelineProvider(chapters: Chapter[]) {
     });
     req.on('end', () => {
       const request = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
-        messages: Array<{ content: string }>;
+        instructions?: unknown;
+        input?: unknown;
       };
-      const system = request.messages[0]?.content ?? '';
-      const user = request.messages[1]?.content ?? '';
+      const system = typeof request.instructions === 'string' ? request.instructions : '';
+      const user = typeof request.input === 'string' ? request.input : '';
       const content = buildProviderResponse(system, user, chapters, stageCalls);
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ choices: [{ message: { content } }] }));
+      res.end(JSON.stringify(buildResponsesPayload(content)));
     });
   });
   servers.push(server);
@@ -198,7 +199,7 @@ async function startRepairProvider(content: string) {
   const server = createServer((_req, res) => {
     calls += 1;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ choices: [{ message: { content } }] }));
+    res.end(JSON.stringify(buildResponsesPayload(content)));
   });
   servers.push(server);
   await new Promise<void>((resolve) => {
@@ -235,6 +236,10 @@ function buildProviderResponse(system: string, user: string, chapters: Chapter[]
 
   stageCalls.push('repair');
   return buildScreenplayYaml(chapters);
+}
+
+function buildResponsesPayload(content: string) {
+  return { output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: content }] }] };
 }
 
 function buildBible() {

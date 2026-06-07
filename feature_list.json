@@ -182,6 +182,22 @@
       "passes": true
     },
     {
+      "id": "P5-STREAM-004",
+      "phase": "Phase 5",
+      "category": "quality",
+      "priority": "P1",
+      "description": "Generation uses a real backend stream, sends split chapters into the multi-stage pipeline, logs stream events, and normalizes missing project.language.",
+      "steps": [
+        "Click generate from the web app.",
+        "Verify the browser requests /api/screenplay/generate/stream after /api/chapters/split.",
+        "Verify the YAML editor receives incremental yaml_delta content before final validation.",
+        "Verify server logs include screenplay.stream.stage, screenplay.stream.yaml_delta, and screenplay.stream.completed.",
+        "Verify missing project.language is normalized to zh-CN before validation.",
+        "Run pnpm verify and pnpm test:ui."
+      ],
+      "passes": false
+    },
+    {
       "id": "P5-DEMO-003",
       "phase": "Phase 5",
       "category": "demo",
