@@ -22,7 +22,7 @@ Date: 2026-06-06
 - 不引入 Monaco Editor 或 CodeMirror；继续沿用 `P4-EDITOR-001` 的 textarea。
 - 不修改 `examples/*` demo fixture。
 - 不改弱后端 validator 的结构或应用层校验规则。
-- 不实现章节确认 UI、少于 3 章友好拦截或 loading/error 全路径打磨，这些属于后续 feature。
+- 不实现章节确认 UI、输入预检体验或 loading/error 全路径打磨，这些属于后续 feature。
 
 ## 用户路径
 

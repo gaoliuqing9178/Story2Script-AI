@@ -1,5 +1,46 @@
 # Progress Log
 
+## 2026-06-07 - Chapter Count Limit Removal
+
+目标：按最新题意解除章节数限制。原题“至少处理三章以上的小说”表示系统至少要能处理 3 章以上长输入，不表示只能处理 3 章以上输入；当前行为应允许 1 章、2 章和更多章节进入生成路径。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/server/src/routes/chapters.ts`：移除 `/api/chapters/split` 的 `chapters.length < 3` 拦截；2 章输入现在返回 HTTP 200 和有序 `Chapter[]`。
+- 更新 `apps/server/src/routes/screenplay.ts`：multi-stage pipeline 不再拦截 1/2 章；仅保留 0 章 `BAD_REQUEST`，并移除 single-stage prompt 中“三章以上”和 `source.chapters 至少 3 项` 的要求。
+- 更新 `packages/shared/src/schema.ts`：`source.chapters.minItems` 从 3 改为 1。
+- 更新 `apps/web/src/ui-states.tsx`：generation checking 文案改为“识别章节结构”，空输入提示不再要求 3 章。
+- 更新 `apps/server/tests/chapter-split-route.test.ts`：2 章 fixture 断言 HTTP 200。
+- 更新 `apps/server/tests/yaml-validate-route.test.ts`：1 章 screenplay 断言 `valid:true`，空 `source.chapters` 仍断言 `至少需要 1 项`。
+- 更新 `apps/server/tests/pipeline-route.test.ts`：新增 2 章 multi-stage pipeline 正向用例。
+- 更新 `apps/web/tests/ui/p5-polish.spec.ts`：2 章中文小说不再断言拦截，而是断言 split 和 generate 都被调用，YAML 校验通过。
+- 同步 `README.md`、`AGENTS.md`、`docs/design.md`、`docs/engineering.md`、`docs/yaml-schema.md`、`docs/contracts/*`、`docs/qa/*`、`feature_list.json` 的当前语义。
+
+当前语义：
+
+- 空小说输入仍被拦截，提示 `请先输入小说正文，再生成剧本。`
+- `/api/chapters/split` 对 1 章、2 章和更多章节返回 HTTP 200。
+- `/api/screenplay/generate` 的 multi-stage 路径允许 1 章或更多章节；0 章仍返回 `400 BAD_REQUEST`。
+- YAML schema 只要求 `source.chapters` 非空，不再要求最少 3 章。
+- 历史记录中关于 `TOO_FEW_CHAPTERS` / 少于 3 章拦截的段落属于旧需求验收记录，当前行为以本节、`feature_list.json`、contract 和 QA 更新为准。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 30 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 12 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build；shared 1 test、server 30 tests、web 3 tests 均通过，build 成功。
+- Chrome DevTools MCP 真实浏览器复核：通过。2 章中文小说路径显示 split `[200]`、generate `[200]`、validate `[200]`，页面 `校验通过`、`预览已更新`，截图 `H:\tmp\chapter-limit-removal-fullpage.png`，布局 `horizontalOverflow:false`。
+- 注：首次运行指定 `test:ui` 时发现旧 dev server 占用 `5173/8787`；确认是当前仓库 Vite/server 进程后停止，再重新运行通过。
+
 ## 2026-06-07 - P5-DEMO-003 Demo Assets and Route
 
 目标：实现 `feature_list.json` 中的 `P5-DEMO-003`，补齐稳定合法 YAML、故意损坏 YAML、README 和 3 分钟 demo route。

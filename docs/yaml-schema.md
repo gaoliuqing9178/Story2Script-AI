@@ -309,7 +309,7 @@ AI 改编需要建立信任。`notes` 让系统说明为什么这样改，以及
 
 - 顶层必须包含 `schema_version`、`project`、`source`、`characters`、`locations`、`scenes`。
 - `project.title`、`project.source_type`、`project.adaptation_type`、`project.language` 必填。
-- `source.chapters` 至少包含 3 个章节。
+- `source.chapters` 至少包含 1 个章节，不限制为 3 章起步。
 - `characters` 至少包含 1 个角色。
 - `locations` 至少包含 1 个地点。
 - `scenes` 至少包含 1 个场景。
@@ -396,7 +396,7 @@ AI 改编需要建立信任。`notes` 让系统说明为什么这样改，以及
       "properties": {
         "chapters": {
           "type": "array",
-          "minItems": 3,
+          "minItems": 1,
           "items": {
             "type": "object",
             "required": ["id", "title", "order", "summary"],

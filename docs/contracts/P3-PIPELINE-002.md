@@ -26,7 +26,7 @@ Date: 2026-06-06
 
 ## 用户路径
 
-1. 调用方通过 `POST /api/chapters/split` 获得 5 章以上 `Chapter[]`。
+1. 调用方通过 `POST /api/chapters/split` 获得 1 章或更多 `Chapter[]`。
 2. 调用方通过 `POST /api/chapters/analyze` 获得逐章分析。
 3. 调用方通过 `POST /api/screenplay/generate` 提交 `chapters`，系统运行 multi-stage pipeline。
 4. pipeline 返回 YAML、最终 validation、analyses、bible、initial validation 和 repair attempt metadata。
@@ -49,7 +49,7 @@ Date: 2026-06-06
 
 - 页面区域：本轮不新增 UI。
 - Loading：不涉及。
-- 错误态：API 返回具体 `BAD_REQUEST`、`TOO_FEW_CHAPTERS` 或 `LLM_UNAVAILABLE`。
+- 错误态：API 返回具体 `BAD_REQUEST` 或 `LLM_UNAVAILABLE`。
 - 视觉要求：现有页面不能因后端改动出现空白、错位、遮挡、文字溢出。
 
 ## API 要求
@@ -143,10 +143,11 @@ Generator 简单验证：
 自动化覆盖：
 
 1. `/api/chapters/analyze` 默认 mock provider 返回每章分析。
-2. `/api/screenplay/generate` 使用本地 OpenAI-compatible fake server，确认 5 次 analysis、1 次 bible、1 次 scene generation、1 次 repair。
-3. 生成阶段故意返回缺 `project.title` 的 YAML，确认 initial validation 为 false，repair 后 validation 为 true。
-4. `/api/yaml/repair` 在 provider 持续返回 invalid YAML 时，确认 repair attempts 不超过请求上限。
-5. 旧 P2 单阶段 generate route 测试继续通过。
+2. `/api/screenplay/generate` 使用本地 OpenAI-compatible fake server，确认 5 章长样例有 5 次 analysis、1 次 bible、1 次 scene generation、1 次 repair。
+3. `/api/screenplay/generate` 使用 2 章输入时也能完成 multi-stage pipeline，并返回 `validation.valid === true`。
+4. 生成阶段故意返回缺 `project.title` 的 YAML，确认 initial validation 为 false，repair 后 validation 为 true。
+5. `/api/yaml/repair` 在 provider 持续返回 invalid YAML 时，确认 repair attempts 不超过请求上限。
+6. 旧 P2 单阶段 generate route 测试继续通过。
 
 Evaluator 真实交互验证：
 

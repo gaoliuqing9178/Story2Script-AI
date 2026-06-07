@@ -11,7 +11,7 @@ export function renderGenerationState({ generationPhase, hasYaml, status }: Gene
   if (status === 'loading' && generationPhase === 'checking') {
     return (
       <p className="rounded border border-indigo-200 bg-indigo-50 p-3 text-sm leading-6 text-accent">
-        正在检查章节数量，确认至少 3 个章节后再进入生成。
+        正在识别章节结构，确认可以进入生成。
       </p>
     );
   }
@@ -42,7 +42,7 @@ export function renderGenerationState({ generationPhase, hasYaml, status }: Gene
 
   return (
     <p className="rounded border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-      等待生成：会先检查章节数量，再调用剧本生成接口。
+      等待生成：会先识别章节结构，再调用剧本生成接口。
     </p>
   );
 }
@@ -55,7 +55,7 @@ export function getGenerateButtonLabel(
     return '用样例生成';
   }
 
-  return generationPhase === 'checking' ? '检查章节...' : '生成中...';
+  return generationPhase === 'checking' ? '识别章节...' : '生成中...';
 }
 
 interface ExportStateInput {
@@ -86,12 +86,8 @@ export function getExportStateText({ errors, hasYaml, validation, validationStat
 }
 
 export function getGenerateErrorMessage(cause: unknown, phase: 'checking' | 'generating') {
-  if (cause instanceof ChapterSplitError && cause.code === 'TOO_FEW_CHAPTERS') {
-    return `还差一点：${cause.message}。请再补充章节后生成剧本。`;
-  }
-
   if (cause instanceof ChapterSplitError && cause.code === 'BAD_REQUEST') {
-    return '请先输入小说正文，并包含至少 3 个章节。';
+    return '请先输入小说正文，再生成剧本。';
   }
 
   const message = cause instanceof Error ? cause.message : '生成请求失败';

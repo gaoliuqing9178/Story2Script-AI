@@ -60,11 +60,11 @@ screenplayRouter.post('/generate', async (req, res, next) => {
     if (chapters || analyses) {
       const pipelineChapters = chapters ?? (novelText ? splitChapters(novelText) : []);
 
-      if (pipelineChapters.length < 3) {
-        res.status(422).json({
+      if (pipelineChapters.length === 0) {
+        res.status(400).json({
           error: {
-            code: 'TOO_FEW_CHAPTERS',
-            message: `至少需要 3 个章节，当前识别到 ${pipelineChapters.length} 个`
+            code: 'BAD_REQUEST',
+            message: 'chapters must include at least one Chapter'
           }
         });
         return;
@@ -158,11 +158,11 @@ interface GenerateScreenplayRequest {
 function buildSingleStageSystemPrompt() {
   return [
     '你是 Story2Script AI 的小说改编助手。',
-    '任务：把三章以上小说一次性改编为结构化剧本 YAML。',
+    '任务：把小说一次性改编为结构化剧本 YAML。',
     '只返回 YAML 正文，不要解释，不要 Markdown 代码围栏。',
     'YAML 必须符合 schema_version "1.0"，顶层必须包含 schema_version、project、source、characters、locations、scenes。',
     'project.source_type 固定为 novel；project.adaptation_type 必须是 screenplay、stage_play、audio_drama、short_drama 之一。',
-    'source.chapters 至少 3 项，每项包含 id、title、order、summary。',
+    'source.chapters 至少 1 项，并覆盖输入章节；每项包含 id、title、order、summary。',
     'characters 至少 1 项，每项包含 id、name、role；role 必须是 protagonist、antagonist、supporting、minor 之一。',
     'locations 至少 1 项，每项包含 id、name。',
     'scenes 至少 1 项，每项包含 id、title、order、source_chapters、location_id、characters、purpose、conflict、beats。',

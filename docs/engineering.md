@@ -69,7 +69,7 @@ xengineering/
 │   ├── yaml-schema.md
 │   └── engineering.md            # 本文
 ├── examples/
-│   ├── novel-sample.md           # 内置样例小说（≥3 章）
+│   ├── novel-sample.md           # 内置样例小说
 │   └── screenplay-sample.yaml    # 示例输出 / demo fallback
 ├── packages/
 │   └── shared/
@@ -226,7 +226,7 @@ export function createProvider(): LLMProvider {
 
 产出 `Chapter[]`，附 `word_count` 与内容预览。若无法识别 → 返回空数组并提示前端走“手动分隔”路径。
 
-**输入拦截**：切章后若章节数 < 3，路由返回 `422` 并提示“至少需要 3 个章节”。这是题目硬性验收点，在此处兜底。
+**输入预检**：切章后返回识别出的 `Chapter[]`。章节数量不再作为拦截条件；题目要求是至少能处理 3 章以上小说，不是只能处理 3 章以上小说。缺少正文时仍返回 `400 BAD_REQUEST`。
 
 ### 6.3 流水线编排（pipeline）
 
@@ -314,11 +314,7 @@ export function validateScreenplay(yamlText: string): ValidationResult {
 { "chapters": [{ "id": "chapter_001", "title": "第一章 雨夜归来", "order": 1, "content": "...", "word_count": 2600 }] }
 ```
 
-响应 `422`（章节不足）：
-
-```json
-{ "error": { "code": "TOO_FEW_CHAPTERS", "message": "至少需要 3 个章节，当前识别到 2 个" } }
-```
+章节数量不作为错误条件；1 章、2 章和更多章节都返回 `200`。
 
 ### 7.2 `/api/screenplay/generate`
 
@@ -346,7 +342,6 @@ export function validateScreenplay(yamlText: string): ValidationResult {
 
 | code | HTTP | 含义 |
 | --- | --- | --- |
-| `TOO_FEW_CHAPTERS` | 422 | 章节少于 3 |
 | `YAML_PARSE_ERROR` | 200* | YAML 无法解析（作为校验结果返回，非 HTTP 错误） |
 | `LLM_UNAVAILABLE` | 502 | Provider 调用失败（前端可提示切 mock） |
 | `BAD_REQUEST` | 400 | 入参缺失/格式错 |
@@ -480,7 +475,7 @@ pnpm --filter server build
 
 | 层 | 用例 | 工具 |
 | --- | --- | --- |
-| 切章 | 中文章节 / Chapter / Markdown / 自定义分隔；<3 章拦截 | vitest |
+| 切章 | 中文章节 / Chapter / Markdown / 自定义分隔；2 章放行 | vitest |
 | 结构校验 | 缺 `schema_version`、缺 `title`、`beat.type` 越界、枚举错 | vitest |
 | 引用校验 | speaker/location_id/source_chapters 悬空；条件必填缺 speaker；id 重复 | vitest |
 | 覆盖警告 | 存在未被引用的章节 → warning | vitest |

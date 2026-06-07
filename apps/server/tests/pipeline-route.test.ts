@@ -95,6 +95,29 @@ describe('Phase 3 multi-stage pipeline routes', () => {
     expect(openai.stageCalls).toEqual(expect.arrayContaining(['bible', 'scene-generation', 'repair']));
   });
 
+  it('runs the multi-stage pipeline with two chapters', async () => {
+    const chapters = makeLongChapters().slice(0, 2);
+    const openai = await startPipelineProvider(chapters);
+    process.env.LLM_PROVIDER = 'openai';
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.OPENAI_BASE_URL = openai.baseUrl;
+
+    const { status, body } = await postJson('/api/screenplay/generate', {
+      chapters,
+      adaptation_type: 'screenplay',
+      adaptation_intensity: 'balanced'
+    });
+    const generateBody = body as GeneratePipelineBody;
+    const parsed = load(generateBody.yaml) as Screenplay;
+
+    expect(status).toBe(200);
+    expect(generateBody.validation).toEqual({ valid: true, errors: [], warnings: [] });
+    expect(parsed.source.chapters).toHaveLength(2);
+    expect(parsed.scenes.flatMap((scene) => scene.source_chapters).sort()).toEqual(chapters.map((chapter) => chapter.id));
+    expect(openai.stageCalls.filter((stage) => stage === 'analysis')).toHaveLength(2);
+    expect(openai.stageCalls).toEqual(expect.arrayContaining(['bible', 'scene-generation', 'repair']));
+  });
+
   it('bounds YAML repair retries when the provider keeps returning invalid YAML', async () => {
     const invalidYaml = buildScreenplayYaml(makeLongChapters(), { omitProjectTitle: true });
     const openai = await startRepairProvider(invalidYaml);

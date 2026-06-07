@@ -23,20 +23,6 @@ chaptersRouter.post('/split', (req, res) => {
 
   const chapters = splitChapters(text);
 
-  if (chapters.length < 3) {
-    logEvent('chapters.split.rejected', {
-      input_chars: text.length,
-      chapters: chapters.length
-    });
-    res.status(422).json({
-      error: {
-        code: 'TOO_FEW_CHAPTERS',
-        message: `至少需要 3 个章节，当前识别到 ${chapters.length} 个`
-      }
-    });
-    return;
-  }
-
   logEvent('chapters.split.completed', {
     input_chars: text.length,
     chapters: chapters.length

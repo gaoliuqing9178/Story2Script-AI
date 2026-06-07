@@ -1,5 +1,57 @@
 # Handoff
 
+## 2026-06-07 Update - Chapter Count Limit Removal
+
+本轮按最新题意解除章节数限制：原题“至少处理三章以上的小说”表示系统至少要能处理 3 章以上长输入，不表示只能处理 3 章以上输入。
+
+当前行为：
+
+- `/api/chapters/split` 不再因少于 3 章返回 `TOO_FEW_CHAPTERS`；1 章、2 章和更多章节都返回 HTTP 200 与有序 `Chapter[]`。
+- `/api/screenplay/generate` 的 multi-stage 路径允许 1 章或更多章节；0 章仍返回 `400 BAD_REQUEST`，避免把无来源章节的数据送进 pipeline。
+- `source.chapters` 的 YAML schema 下限从 3 改为 1；空章节数组仍非法。
+- 前端 generation checking 文案改为 `正在识别章节结构，确认可以进入生成。`，初始文案改为 `等待生成：会先识别章节结构，再调用剧本生成接口。`
+- 2 章中文小说现在会通过预检并继续调用 `/api/screenplay/generate`；空输入仍显示 `请先输入小说正文，再生成剧本。`
+
+本轮已修改：
+
+- `apps/server/src/routes/chapters.ts`
+- `apps/server/src/routes/screenplay.ts`
+- `packages/shared/src/schema.ts`
+- `apps/web/src/ui-states.tsx`
+- `apps/server/tests/chapter-split-route.test.ts`
+- `apps/server/tests/yaml-validate-route.test.ts`
+- `apps/server/tests/pipeline-route.test.ts`
+- `apps/web/tests/ui/p5-polish.spec.ts`
+- `feature_list.json`
+- `README.md`
+- `AGENTS.md`
+- `docs/design.md`
+- `docs/engineering.md`
+- `docs/yaml-schema.md`
+- `docs/contracts/P1-VALIDATE-001.md`
+- `docs/contracts/P3-PIPELINE-001.md`
+- `docs/contracts/P3-PIPELINE-002.md`
+- `docs/contracts/P4-PREVIEW-002.md`
+- `docs/contracts/P5-POLISH-001.md`
+- `docs/contracts/P5-POLISH-002.md`
+- `docs/qa/P1-VALIDATE-001.md`
+- `docs/qa/P3-PIPELINE-001.md`
+- `docs/qa/P5-POLISH-001.md`
+- `docs/qa/P5-POLISH-002.md`
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 30 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 12 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build；shared 1 test、server 30 tests、web 3 tests 均通过，build 成功。
+- Chrome DevTools MCP 真实浏览器复核：通过。2 章中文小说路径显示 split `[200]`、generate `[200]`、validate `[200]`，页面 `校验通过`、`预览已更新`，截图 `H:\tmp\chapter-limit-removal-fullpage.png`，布局 `horizontalOverflow:false`。
+- 首次运行指定 `test:ui` 时旧 dev server 占用 `5173/8787`；确认进程属于当前仓库后已停止并重新验证通过。
+
+注意：
+
+- 本文件后续历史段落中仍会出现旧的 `TOO_FEW_CHAPTERS` / 少于 3 章拦截记录，那些是旧需求下的历史验收证据。当前行为以本节、`feature_list.json` 和更新后的 contracts/QA 为准。
+
 ## 2026-06-07 Update - P5-DEMO-003
 
 `P5-DEMO-003` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。

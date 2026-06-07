@@ -285,21 +285,40 @@ describe('POST /api/yaml/validate', () => {
     );
   });
 
-  it('enforces the minimum source chapter count', async () => {
+  it('accepts a screenplay with one source chapter', async () => {
+    const screenplay = parseSample();
+
+    if (!screenplay.source?.chapters?.[0] || !screenplay.scenes) {
+      throw new Error('Sample fixture must include source.chapters and scenes.');
+    }
+
+    screenplay.source.chapters = screenplay.source.chapters.slice(0, 1);
+    for (const scene of screenplay.scenes) {
+      scene.source_chapters = ['chapter_001'];
+    }
+
+    const { body } = await postValidate(toYaml(screenplay));
+
+    expect(body.valid).toBe(true);
+    expect(body.errors).toEqual([]);
+    expect(body.warnings).toEqual([]);
+  });
+
+  it('keeps source chapters non-empty', async () => {
     const screenplay = parseSample();
 
     if (!screenplay.source?.chapters) {
       throw new Error('Sample fixture must include source.chapters.');
     }
 
-    screenplay.source.chapters = screenplay.source.chapters.slice(0, 2);
+    screenplay.source.chapters = [];
 
     const { body } = await postValidate(toYaml(screenplay));
 
     expect(body.valid).toBe(false);
     expect(body.errors).toContainEqual({
       path: 'source.chapters',
-      message: '至少需要 3 项'
+      message: '至少需要 1 项'
     });
   });
 });

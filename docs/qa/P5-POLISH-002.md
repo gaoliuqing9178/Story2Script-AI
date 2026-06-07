@@ -21,7 +21,7 @@ Tooling:
 2. 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173/`。
 3. 初始页面确认：默认 3 章小说、`YAML 编辑器` 为 `0` 字符、导出按钮禁用、校验状态为 `未校验`、导出区显示暂无可导出的 YAML。
 4. 在浏览器上下文延迟 `/api/screenplay/generate`，点击生成并读取 DOM 状态。
-5. 确认 generation loading 显示 `正在生成剧本 YAML，请稍等，按钮已暂时锁定。`，生成按钮 disabled，导出按钮 disabled。
+5. 确认 generation loading 显示 `正在识别章节结构，确认可以进入生成。` 或 `正在生成剧本 YAML，请稍等，按钮已暂时锁定。`，生成按钮 disabled，导出按钮 disabled。
 6. 默认 3 章样例正常生成后，确认 YAML 字符数为 `3347`，校验通过，预览更新，导出按钮启用。
 7. 删除 YAML 中的 `project.title`，确认校验错误显示 `project.title` / `必填字段缺失`，预览暂停，导出暂停。
 8. 模拟 `/api/yaml/validate` 返回 500，确认校验面板显示 `/api/yaml/validate`，导出和预览暂停。
@@ -127,7 +127,7 @@ Sub-agent evaluator 已完成的浏览器验证摘要：
 ## 自动化覆盖
 
 - `apps/web/tests/ui/p5-polish.spec.ts`：
-  - 2 章输入仍被拦截，且 `/api/screenplay/generate` 未被调用。
+  - 2 章输入通过预检，且 `/api/screenplay/generate` 被调用。
   - 慢 `/api/screenplay/generate` 时 loading 可见，生成按钮 disabled，重复点击只发一次 split 和一次 generate。
   - `/api/screenplay/generate` 500 时显示 `剧本生成阶段失败` 和 `/api/screenplay/generate`。
   - 初始导出空态明确，导出按钮 disabled。

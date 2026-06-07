@@ -10,7 +10,7 @@ Date: 2026-06-07
 
 实现 Phase 5 的状态打磨：
 
-- generation 路径在章节预检和剧本生成期间有明确 loading 文案。
+- generation 路径在章节结构识别和剧本生成期间有明确 loading 文案。
 - generation 按钮在请求中锁定，避免重复提交。
 - generation 失败时显示具体失败阶段和 API 路径。
 - validation 路径在校验中、业务校验失败和校验请求失败时都有明确状态。
@@ -30,7 +30,7 @@ Date: 2026-06-07
 1. 用户打开 `http://127.0.0.1:5173/`。
 2. 初始状态下，右侧 YAML 为空，校验结果为 `未校验`，导出按钮禁用，并显示暂无可导出的 YAML。
 3. 用户点击“用样例生成”。
-4. 前端先显示章节检查 loading；章节预检通过后显示生成 YAML loading。
+4. 前端先显示章节结构识别 loading；预检通过后显示生成 YAML loading。
 5. loading 期间生成按钮禁用，重复点击不会触发重复提交。
 6. 生成成功后，YAML 进入编辑器，校验通过，预览更新，导出按钮启用。
 7. 如果 `/api/screenplay/generate` 失败，页面显示 `剧本生成阶段失败（/api/screenplay/generate）` 和服务端错误原因。
@@ -45,7 +45,7 @@ Date: 2026-06-07
   - `yaml`: YAML 编辑器 textarea value，是前端 YAML 唯一事实源。
 - 状态：
   - `status`: generation 总状态，覆盖 `idle`、`loading`、`error`。
-  - `generationPhase`: generation 子阶段，覆盖 `checking` 和 `generating`。
+  - `generationPhase`: generation 子阶段，覆盖 `checking` 和 `generating`；`checking` 表示识别章节结构，不表示最少 3 章校验。
   - `validationStatus`: validation 请求状态，覆盖 `idle`、`validating`、`error`。
   - `validation`: 后端返回的 `ValidationResult`。
 - 输出：
@@ -62,7 +62,7 @@ Date: 2026-06-07
   - export 状态显示在 `YAML 编辑器` 导出按钮下方。
   - validation 请求失败显示在 `校验结果` 面板内。
 - Loading：
-  - 章节预检：`正在检查章节数量，确认至少 3 个章节后再进入生成。`
+  - 章节结构识别：`正在识别章节结构，确认可以进入生成。`
   - 生成 YAML：`正在生成剧本 YAML，请稍等，按钮已暂时锁定。`
   - YAML 校验：`校验中...`，导出提示 `校验中，导出暂不可用。`
 - 错误态：
@@ -87,7 +87,7 @@ POST /api/yaml/validate
 
 错误展示要求：
 
-- `/api/chapters/split` 的 `TOO_FEW_CHAPTERS` 继续显示 P5-POLISH-001 已验收的友好文案。
+- `/api/chapters/split` 不再因少于 3 章返回 `TOO_FEW_CHAPTERS`；空输入仍显示友好文案。
 - `/api/screenplay/generate` 非 2xx 时，前端显示生成阶段和接口路径。
 - `/api/yaml/validate` 非 2xx 时，前端显示校验阶段和接口路径。
 
@@ -106,7 +106,7 @@ Generator 简单验证：
 
 自动化覆盖：
 
-1. 少于 3 章输入仍被拦截，且不调用 `/api/screenplay/generate`。
+1. 2 章输入会通过预检，并继续调用 `/api/screenplay/generate`。
 2. 慢 `/api/screenplay/generate` 时 loading 可见，生成按钮 disabled，重复点击只发一次 generate。
 3. `/api/screenplay/generate` 500 时显示接口路径，YAML 保持空态。
 4. 初始 export 空态明确，导出按钮 disabled。
