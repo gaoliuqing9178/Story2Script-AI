@@ -165,7 +165,7 @@
         "Verify the UI tells the user at least 3 chapters are required and how many were detected.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P5-POLISH-002",

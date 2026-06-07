@@ -1,5 +1,55 @@
 # Handoff
 
+## 2026-06-07 Update - P5-POLISH-001
+
+`P5-POLISH-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+
+本轮已实现：
+
+- `apps/web/src/api/chapters.ts`：新增章节切分客户端，调用 `POST /api/chapters/split`，并通过 `ChapterSplitError` 保留后端 `status` 与 `error.code`。
+- `apps/web/src/App.tsx`：点击“用样例生成”时先做章节数预检查；少于 3 章时在 `小说输入` 面板显示友好提示，并阻止调用 `/api/screenplay/generate`。
+- `apps/web/tests/ui/p5-polish.spec.ts`：Playwright 覆盖 2 章中文小说负向路径，断言提示包含最低章节数和当前识别数，且 generate API 未被调用。
+- `docs/contracts/P5-POLISH-001.md`：本轮 contract。
+- `docs/qa/P5-POLISH-001.md`：Chrome DevTools MCP evaluator QA 报告。
+
+当前输入拦截语义：
+
+- 前端复用已验收的 `POST /api/chapters/split`，本轮不新增后端 API，也不改变 `/api/screenplay/generate` 契约。
+- 少于 3 章时，页面显示：`还差一点：至少需要 3 个章节，当前识别到 2 个。请再补充章节后生成剧本。`
+- 少于 3 章时，本次点击不会进入 LLM/mock 生成路径；YAML 编辑器保持原状态。当前负向用例覆盖空 YAML 时仍为空，校验状态仍为 `未校验`。
+- 默认 3 章样例仍正常回归：先 `/api/chapters/split [200]`，再 `/api/screenplay/generate [200]`，随后 `/api/yaml/validate [200]`。
+- 本轮没有修改后端切章规则、provider、pipeline、validator 或 `examples/*`。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 1 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 6 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- evaluator 子代理 `019ea086-aeda-76c1-ab27-665c30e8ac8f`：PASS。
+  - 使用 Chrome DevTools MCP 完成真实页面交互、Network 复核、full-page screenshot 和视觉检查。
+  - 2 章负向路径 Network 只有 `POST /api/chapters/split [422]`，没有 `/api/screenplay/generate`。
+  - `/api/chapters/split` 响应为 `TOO_FEW_CHAPTERS`，message 为 `至少需要 3 个章节，当前识别到 2 个`。
+  - YAML 编辑器 `valueLength: 0`，校验状态为 `未校验`，导出按钮保持 disabled。
+  - 3 章默认样例回归通过，YAML 字符数 `3347`，校验通过，预览已更新。
+  - Screenshot：`H:\tmp\P5-POLISH-001-fullpage.png`。
+  - 布局检查 PASS：页面非空白，无明显错位、遮挡、文字溢出、按钮截断或横向滚动。
+  - evaluator 停止本轮 dev server 后确认 `5173/8787` 端口释放。
+
+当前状态：
+
+- `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+- `P5-POLISH-002` 与 `P5-DEMO-003` 仍为 `passes:false`。
+- `H:\tmp\P5-POLISH-001-fullpage.png` 是本轮 QA 证据，不属于仓库内交付产物。
+
+下一轮建议：
+
+- 若继续用户体验收口，优先做 `P5-POLISH-002`：统一 generation、validation、export 路径的 loading、empty、error 状态。
+- 若准备演示包，做 `P5-DEMO-003`：补稳定 demo 资产、broken YAML fixture、README 和 3 分钟 demo route。
+- 不要回退 `P5-POLISH-001.passes`，除非发现上述真实验证路径失效。
+
 ## 2026-06-07 Update - P4-EXPORT-003
 
 `P4-EXPORT-003` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
@@ -318,7 +368,7 @@
 
 ## 当前状态
 
-`P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002` 与 `P4-EXPORT-003` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+`P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003` 与 `P5-POLISH-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
 
 当前已证明：Web app 可以通过后端 `POST /api/screenplay/generate` 调用默认 `MockProvider`，读取 `examples/screenplay-sample.yaml`，并在页面展示包含 `schema_version`、`project`、`source`、`characters`、`locations`、`scenes` 的 YAML。
 
@@ -332,13 +382,15 @@
 
 当前前端还已证明：`YAML 编辑器` 可在 validation pass 后导出当前 YAML 和 Markdown 剧本稿；YAML 下载可解析回 `schema_version`、`project`、`source`、`characters`、`locations`、`scenes` 顶层结构，Markdown 下载包含可读场景和 beat 文本。
 
+当前前端还已证明：点击生成前会先调用 `/api/chapters/split` 做章节数预检查；少于 3 章时会在 `小说输入` 面板显示友好、具体的中文提示，并阻止 `/api/screenplay/generate`；默认 3 章样例仍可正常生成、校验和预览。
+
 工作流已更新：generator 每轮只做简单验证；收尾前调用 evaluator 子代理，由 evaluator 使用 Chrome DevTools MCP 做真实交互验证，并截屏进行视觉检查。涉及用户路径的 feature 只有 evaluator QA 放行后才能置 `passes:true`。
 
 ## 已搭好的地基
 
 - 根 `AGENTS.md`：项目地图、开工阅读顺序、完成标准。
 - `docs/` 补全：开发流程、质量说明、决策记录、交接、排障、contract/QA 模板。
-- `feature_list.json`：Phase 0-5 结构化进度表，当前 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003` 为 `passes:true`。
+- `feature_list.json`：Phase 0-5 结构化进度表，当前 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001` 为 `passes:true`。
 - pnpm workspace：`packages/shared`、`apps/server`、`apps/web`。
 - MockProvider：默认读取 `examples/screenplay-sample.yaml`。
 - OpenAIProvider：读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，调用 OpenAI-compatible `/chat/completions`，从 `choices[0].message.content` 提取 YAML。
@@ -355,6 +407,8 @@
 - `apps/web/src/render/screenplay.test.ts`：覆盖剧本预览数据映射和五类 beat。
 - `apps/web/tests/ui/p4-preview.spec.ts`：覆盖预览场景头部、五类 beat 和校验失败暂停态。
 - `apps/web/tests/ui/p4-export.spec.ts`：覆盖 YAML / Markdown 下载路径和下载内容核对。
+- `apps/web/src/api/chapters.ts`：前端章节切分 API 客户端，用于生成前预检查。
+- `apps/web/tests/ui/p5-polish.spec.ts`：覆盖少于 3 章输入的友好拦截、generate 未调用、YAML 空态和校验未校验。
 - `docs/contracts/P0-E2E-001.md`：mock E2E contract。
 - `docs/qa/P0-E2E-001.md`：mock E2E QA PASS 证据。
 - `docs/contracts/P0-INFRA-002.md`：开发 harness contract。
@@ -375,10 +429,12 @@
 - `docs/qa/P4-PREVIEW-002.md`：screenplay preview QA PASS 证据。
 - `docs/contracts/P4-EXPORT-003.md`：YAML / Markdown export contract。
 - `docs/qa/P4-EXPORT-003.md`：YAML / Markdown export QA PASS 证据。
+- `docs/contracts/P5-POLISH-001.md`：input chapter count guard contract。
+- `docs/qa/P5-POLISH-001.md`：input chapter count guard QA PASS 证据。
 
 ## 下一个 coding agent 从哪里开始
 
-建议从 `P5-POLISH-001` 开始：把少于 3 章输入的友好拦截接入前端用户路径。若优先统一状态边界，则做 `P5-POLISH-002`；若准备演示资产，则做 `P5-DEMO-003`。
+建议从 `P5-POLISH-002` 开始：统一 generation、validation、export 路径的 loading、empty、error 状态。若准备演示资产，则做 `P5-DEMO-003`。
 
 ## 已知风险
 
@@ -389,7 +445,7 @@
 ## 验证记录
 
 - `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：本轮通过。覆盖 typecheck、lint、Vitest、build。
-- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：本轮通过。Playwright Chromium 5 passed，真实浏览器覆盖 mock route smoke、P2 请求体断言、P4 editor validation、P4 preview 和 P4 export。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：本轮通过。Playwright Chromium 6 passed，真实浏览器覆盖 mock route smoke、P2 请求体断言、P4 editor validation、P4 preview、P4 export 和 P5 polish 章节数拦截。
 - `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：本轮通过。
 - `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：本轮通过，web 1 个 Vitest 文件 / 3 个 tests。
 - `powershell.exe -ExecutionPolicy Bypass -File .\init.ps1`：上一轮通过。脚本会 install、verify、安装 Playwright Chromium、跑 UI smoke。本轮未重复运行。
@@ -399,7 +455,7 @@
 
 ## 重要收尾说明
 
-- `feature_list.json` 当前只有 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002` 与 `P4-EXPORT-003` 为 `passes:true`，其他 feature 仍为 `false`。
+- `feature_list.json` 当前只有 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003` 与 `P5-POLISH-001` 为 `passes:true`，`P5-POLISH-002` 与 `P5-DEMO-003` 仍为 `false`。
 - `P0-E2E-001` 已有 contract/QA 证据，可以作为 Phase 0 mock 端到端基线。
 - `P0-INFRA-002` 已有 contract/QA 证据，可以作为仓库开发 harness 基线。
 - `P1-VALIDATE-001` 已有 contract/QA 证据，可以作为 Phase 1 结构校验基线。
@@ -409,4 +465,5 @@
 - `P4-EDITOR-001` 已有 contract/QA 证据，可以作为 Phase 4 YAML 编辑与校验基线。
 - `P4-PREVIEW-002` 已有 contract/QA 证据，可以作为 Phase 4 剧本预览基线。
 - `P4-EXPORT-003` 已有 contract/QA 证据，可以作为 Phase 4 YAML / Markdown 导出基线。
+- `P5-POLISH-001` 已有 contract/QA 证据，可以作为 Phase 5 少于 3 章输入友好拦截基线。
 - Playwright 的 webServer 必须从仓库根启动 `pnpm dev`，配置里已经显式设置 `cwd`。

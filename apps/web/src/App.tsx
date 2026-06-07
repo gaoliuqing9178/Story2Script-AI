@@ -1,5 +1,6 @@
 import type { ValidationResult } from '@story2script/shared';
 import { useEffect, useState } from 'react';
+import { ChapterSplitError, splitNovelChapters } from './api/chapters';
 import { generateMockScreenplay, validateYaml } from './api/screenplay';
 import { ScreenplayPreview } from './components/ScreenplayPreview';
 import { buildScreenplayMarkdown, parseScreenplayYaml } from './render/screenplay';
@@ -70,13 +71,14 @@ export function App() {
     setExportError('');
 
     try {
+      await splitNovelChapters(novelText);
       const result = await generateMockScreenplay(novelText);
       setYaml(result.yaml);
       setValidation(result.validation);
       setStatus('idle');
     } catch (cause) {
       setStatus('error');
-      setError(cause instanceof Error ? cause.message : '生成请求失败');
+      setError(getGenerateErrorMessage(cause));
     }
   }
 
@@ -164,9 +166,17 @@ export function App() {
             <textarea
               className="min-h-[280px] flex-1 resize-none border-0 p-4 text-sm leading-6 text-slate-800 outline-none"
               value={novelText}
-              onChange={(event) => setNovelText(event.target.value)}
+              onChange={(event) => {
+                setNovelText(event.target.value);
+                setError('');
+              }}
               aria-label="小说输入"
             />
+            {error ? (
+              <div className="mx-4 mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900" data-testid="generation-error">
+                {error}
+              </div>
+            ) : null}
             <div className="flex items-center justify-between border-t border-line px-4 py-3">
               <span className="text-sm text-slate-500">{novelText.length} 字符</span>
               <button
@@ -213,9 +223,6 @@ export function App() {
                   </div>
                 </div>
               </div>
-              {error ? (
-                <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
-              ) : null}
               {exportError ? (
                 <div className="mx-4 mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{exportError}</div>
               ) : null}
@@ -312,6 +319,18 @@ function buildExportFileName(title: string | undefined, extension: 'yaml' | 'md'
 
 function isUnsafeFileNameCharacter(character: string) {
   return character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character);
+}
+
+function getGenerateErrorMessage(cause: unknown) {
+  if (cause instanceof ChapterSplitError && cause.code === 'TOO_FEW_CHAPTERS') {
+    return `还差一点：${cause.message}。请再补充章节后生成剧本。`;
+  }
+
+  if (cause instanceof ChapterSplitError && cause.code === 'BAD_REQUEST') {
+    return '请先输入小说正文，并包含至少 3 个章节。';
+  }
+
+  return cause instanceof Error ? cause.message : '生成请求失败';
 }
 
 function ensureTrailingNewline(value: string) {

@@ -1,5 +1,66 @@
 # Progress Log
 
+## 2026-06-07 - P5-POLISH-001 Input Chapter Count Guard
+
+目标：实现 `feature_list.json` 中的 `P5-POLISH-001`，让少于 3 章的小说输入在前端生成前被友好拦截，并明确告诉用户至少需要 3 个章节、当前识别到几个章节。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/web/src/api/chapters.ts`：封装 `POST /api/chapters/split`，并用 `ChapterSplitError` 保留后端 `status` 与 `error.code`。
+- 更新 `apps/web/src/App.tsx`：点击“用样例生成”时先运行章节切分预检查；`TOO_FEW_CHAPTERS` 时显示中文友好提示，并阻止继续调用 `/api/screenplay/generate`。
+- 新增 `apps/web/tests/ui/p5-polish.spec.ts`：覆盖 2 章中文小说负向路径，断言 UI 文案、YAML 空态、校验未校验，以及 generate API 未被调用。
+- 新增 `docs/contracts/P5-POLISH-001.md`。
+- 新增 `docs/qa/P5-POLISH-001.md`。
+- 将 `feature_list.json` 中 `P5-POLISH-001.passes` 改为 `true`。
+
+关键实现说明：
+
+- 前端复用已验收的 `/api/chapters/split` 作为生成前预检查，不新增后端 API，也不改变 `/api/screenplay/generate` 契约。
+- 少于 3 章时，提示显示在左侧 `小说输入` 面板内，文案为 `还差一点：至少需要 3 个章节，当前识别到 2 个。请再补充章节后生成剧本。`
+- 少于 3 章时不会修改当前 YAML；当前测试覆盖空 YAML 场景下仍保持 YAML 编辑器为空、校验结果为 `未校验`。
+- 默认 3 章样例仍按既有路径生成：先 split 成功，再调用 `/api/screenplay/generate`，随后运行 `/api/yaml/validate`。
+- 本轮没有修改后端切章规则、provider、pipeline、validator 或 `examples/*`。
+
+明确未做：
+
+- 未实现完整章节确认 UI、章节排序、章节编辑或手动重切章。
+- 未实现 `P5-POLISH-002` 的 loading、empty、error 全路径打磨。
+- 未新增真实 LLM 调用，也未改变 mock/openai-compatible provider 语义。
+- 未修改 demo 资产或 README。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 1 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 6 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- evaluator 子代理 `019ea086-aeda-76c1-ab27-665c30e8ac8f`：PASS。
+  - 使用 Chrome DevTools MCP 完成真实页面交互、Network 复核、full-page screenshot 和视觉检查。
+  - 2 章负向路径 Network 只有 `POST /api/chapters/split [422]`，没有 `/api/screenplay/generate`。
+  - `/api/chapters/split` 响应为 `TOO_FEW_CHAPTERS`，message 为 `至少需要 3 个章节，当前识别到 2 个`。
+  - 页面显示友好提示：`还差一点：至少需要 3 个章节，当前识别到 2 个。请再补充章节后生成剧本。`
+  - YAML 编辑器 `valueLength: 0`，校验状态为 `未校验`，导出按钮保持 disabled。
+  - 3 章默认样例回归通过：`/api/chapters/split [200]`、`/api/screenplay/generate [200]`、`/api/yaml/validate [200]`，YAML 字符数 `3347`，校验通过，预览已更新。
+  - full-page screenshot：`H:\tmp\P5-POLISH-001-fullpage.png`。
+  - 布局指标：`scrollWidth === innerWidth`，无横向溢出。
+  - evaluator 停止本轮 dev server 后确认 `5173/8787` 端口释放。
+
+状态确认：
+
+- `P5-POLISH-001` 已具备 contract、QA 报告、Playwright UI 覆盖、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001` 为 `passes:true`。
+- `P5-POLISH-002` 与 `P5-DEMO-003` 仍保持 `passes:false`。
+
 ## 2026-06-07 - P4-EXPORT-003 YAML and Markdown Export
 
 目标：实现 `feature_list.json` 中的 `P4-EXPORT-003`，让用户可以把当前剧本导出为 YAML 和 Markdown。
