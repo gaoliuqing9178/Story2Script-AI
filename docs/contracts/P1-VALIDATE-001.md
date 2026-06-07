@@ -14,7 +14,7 @@ Date: 2026-06-05
 - `schema_version` / `source_type` const。
 - `adaptation_type`、`characters[].role`、`beats[].type` 枚举。
 - 必需数组结构与 `minItems`。
-- `source.chapters` 至少 3 章。
+- `source.chapters` 至少 1 章，不再要求 3 章起步。
 
 ## 明确不做
 
@@ -59,7 +59,7 @@ pnpm verify
 补充真实路径验证：
 
 1. `apps/server/tests/yaml-validate-route.test.ts` 调用真实 Express app 的 `/api/yaml/validate`。
-2. 覆盖 valid fixture、删除 `schema_version`、删除 `project.title`、非法 `beats[0].type`、`source.chapters` 少于 3 章。
+2. 覆盖 valid fixture、删除 `schema_version`、删除 `project.title`、非法 `beats[0].type`、`source.chapters` 为空，以及 1 章 screenplay 可通过。
 
 ## 失败阈值
 

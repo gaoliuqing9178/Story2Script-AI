@@ -29,7 +29,7 @@ export const screenplayJsonSchema = {
       properties: {
         chapters: {
           type: 'array',
-          minItems: 3,
+          minItems: 1,
           items: {
             type: 'object',
             required: ['id', 'title', 'order', 'summary'],

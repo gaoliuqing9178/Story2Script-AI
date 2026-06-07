@@ -40,7 +40,7 @@
       "phase": "Phase 1",
       "category": "functional",
       "priority": "P0",
-      "description": "AJV structural validation enforces yaml-schema.md v1.0 required fields, enums, arrays, and minimum chapter count.",
+      "description": "AJV structural validation enforces yaml-schema.md v1.0 required fields, enums, arrays, and non-empty source chapters.",
       "steps": [
         "Submit valid examples/screenplay-sample.yaml to /api/yaml/validate.",
         "Delete schema_version and verify a precise path error.",
@@ -89,7 +89,7 @@
       "steps": [
         "Submit at least four fixture texts to /api/chapters/split.",
         "Verify each returns ordered chapter ids, titles, content, and word_count.",
-        "Submit fewer than 3 chapters and verify HTTP 422 TOO_FEW_CHAPTERS.",
+        "Submit fewer than 3 chapters and verify HTTP 200 with ordered Chapter objects.",
         "Run pnpm verify."
       ],
       "passes": true
@@ -158,11 +158,11 @@
       "phase": "Phase 5",
       "category": "quality",
       "priority": "P0",
-      "description": "Inputs with fewer than 3 chapters are blocked with a friendly, specific message.",
+      "description": "Generation preflight identifies chapter structure without blocking one- or two-chapter novels.",
       "steps": [
         "Submit a 2-chapter Chinese novel.",
-        "Verify generation is blocked before LLM work starts.",
-        "Verify the UI tells the user at least 3 chapters are required and how many were detected.",
+        "Verify /api/chapters/split returns HTTP 200 with two chapters.",
+        "Verify generation continues into /api/screenplay/generate.",
         "Run pnpm verify and pnpm test:ui."
       ],
       "passes": true
@@ -179,7 +179,7 @@
         "Force server error and verify the UI shows a specific error path or phase.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P5-DEMO-003",
@@ -194,7 +194,7 @@
         "Update README with setup and demo route.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

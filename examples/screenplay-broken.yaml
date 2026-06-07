@@ -1,0 +1,139 @@
+# Deliberately broken demo fixture: project.title is missing so validation reports project.title.
+schema_version: "1.0"
+
+project:
+  source_type: "novel"
+  adaptation_type: "screenplay"
+  language: "zh-CN"
+  logline: "一个离乡多年的青年在雨夜回到故乡，试图查清父亲死亡真相。"
+  theme: "记忆、真相与和解"
+
+source:
+  chapters:
+    - id: "chapter_001"
+      title: "第一章 雨夜归来"
+      order: 1
+      summary: "林舟在雨夜回到故乡，并与旧友沈念重逢。"
+    - id: "chapter_002"
+      title: "第二章 旧信"
+      order: 2
+      summary: "林舟发现父亲留下的旧信，信中暗示当年的事故并不简单。"
+    - id: "chapter_003"
+      title: "第三章 巷口的灯"
+      order: 3
+      summary: "沈念带林舟回到老街，两人发现有人正在暗中监视他们。"
+
+characters:
+  - id: "char_linzhou"
+    name: "林舟"
+    aliases:
+      - "阿舟"
+    role: "protagonist"
+    description: "沉默克制，带着过去的秘密回到故乡。"
+    goals:
+      - "查清父亲死亡真相"
+    relationships:
+      - target: "char_shennian"
+        relation: "旧友，也可能是最理解他的人"
+  - id: "char_shennian"
+    name: "沈念"
+    role: "supporting"
+    description: "林舟的旧友，敏锐而克制。"
+    goals:
+      - "阻止林舟再次被过去吞没"
+
+locations:
+  - id: "loc_old_station"
+    name: "旧火车站"
+    type: "station"
+    description: "废弃多年的老站台，雨夜中显得冷清压抑。"
+  - id: "loc_old_house"
+    name: "林家老屋"
+    type: "house"
+    description: "父亲留下的旧屋，桌柜里藏着多年未解的线索。"
+  - id: "loc_photo_studio"
+    name: "南街照相馆"
+    type: "shop"
+    description: "卷帘门紧锁的照相馆，夜里仍透出微光。"
+
+scenes:
+  - id: "scene_001"
+    title: "雨夜归来"
+    order: 1
+    source_chapters:
+      - "chapter_001"
+    location_id: "loc_old_station"
+    time: "夜晚"
+    mood: "压抑、悬疑"
+    characters:
+      - "char_linzhou"
+      - "char_shennian"
+    purpose: "建立主角回乡和旧人重逢的开端。"
+    conflict: "林舟试图隐藏回来的真正原因，沈念察觉异常。"
+    beats:
+      - type: "action"
+        content: "雨水砸在站台铁皮棚上，林舟拖着旧行李箱走出车厢。"
+      - type: "dialogue"
+        speaker: "char_shennian"
+        content: "你还是回来了。"
+      - type: "dialogue"
+        speaker: "char_linzhou"
+        content: "只是回来办点事。"
+      - type: "action"
+        content: "沈念看向他怀里的旧信封，眼神微微一沉。"
+    notes:
+      adaptation_reason: "原文中的内心描写被改写为可视化动作和道具。"
+      original_reference: "第一章：林舟雨夜抵达旧火车站，与沈念重逢。"
+  - id: "scene_002"
+    title: "旧信"
+    order: 2
+    source_chapters:
+      - "chapter_002"
+    location_id: "loc_old_house"
+    time: "深夜"
+    mood: "安静、紧绷"
+    characters:
+      - "char_linzhou"
+      - "char_shennian"
+    purpose: "揭开林舟回乡调查父亲死亡真相的动机。"
+    conflict: "沈念希望他停下，林舟却决定继续追查。"
+    beats:
+      - type: "action"
+        content: "林舟拉开书桌抽屉，发黄的旧信从账本夹层里滑出来。"
+      - type: "narration"
+        content: "信上只有一句话：那场事故不是意外。"
+      - type: "inner_voice"
+        speaker: "char_linzhou"
+        content: "如果这是真的，那我离开的这些年都错了。"
+      - type: "dialogue"
+        speaker: "char_shennian"
+        content: "阿舟，别一个人查。"
+    notes:
+      adaptation_reason: "将线索集中到旧信这一道具上，方便舞台化呈现。"
+      original_reference: "第二章：林舟在老屋发现父亲留下的旧信。"
+  - id: "scene_003"
+    title: "巷口的灯"
+    order: 3
+    source_chapters:
+      - "chapter_003"
+    location_id: "loc_photo_studio"
+    time: "深夜"
+    mood: "危险、逼近"
+    characters:
+      - "char_linzhou"
+      - "char_shennian"
+    purpose: "把调查推进到南街照相馆，并制造被跟踪的悬念。"
+    conflict: "林舟想立刻进门查证，沈念意识到两人正被监视。"
+    beats:
+      - type: "transition"
+        content: "切至南街尽头。"
+      - type: "action"
+        content: "卷帘门紧锁，玻璃后透出一线微弱的光。"
+      - type: "dialogue"
+        speaker: "char_shennian"
+        content: "别动门把，有人跟着我们。"
+      - type: "action"
+        content: "林舟停住手，雨声里传来第三个人的脚步。"
+    notes:
+      adaptation_reason: "把章节末尾的跟踪感压缩为场景钩子。"
+      original_reference: "第三章：两人在南街照相馆门口发现被人跟踪。"

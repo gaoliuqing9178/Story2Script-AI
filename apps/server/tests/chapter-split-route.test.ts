@@ -117,18 +117,16 @@ describe('POST /api/chapters/split', () => {
     expect(splitBody.chapters.every((chapter) => typeof chapter.content === 'string' && chapter.content.length > 0)).toBe(true);
   });
 
-  it('rejects fewer than three detected chapters', async () => {
+  it('allows fewer than three detected chapters', async () => {
     const { status, body } = await postSplit({
       text: ['第一章 雨夜归来', '雨夜正文。', '第二章 旧信', '旧信正文。'].join('\n')
     });
+    const splitBody = body as SplitChaptersBody;
 
-    expect(status).toBe(422);
-    expect(body).toEqual({
-      error: {
-        code: 'TOO_FEW_CHAPTERS',
-        message: '至少需要 3 个章节，当前识别到 2 个'
-      }
-    });
+    expect(status).toBe(200);
+    expect(splitBody.chapters).toHaveLength(2);
+    expect(splitBody.chapters.map((chapter) => chapter.id)).toEqual(['chapter_001', 'chapter_002']);
+    expect(splitBody.chapters.map((chapter) => chapter.title)).toEqual(['第一章 雨夜归来', '第二章 旧信']);
   });
 
   it('rejects missing text', async () => {

@@ -15,7 +15,8 @@ Evaluator: generator agent
    - 删除 `schema_version` -> `schema_version`
    - 删除 `project.title` -> `project.title`
    - 设置非法 `beats[0].type` -> `scenes[0].beats[0].type`
-   - `source.chapters` 只保留 2 项 -> `source.chapters`
+   - `source.chapters` 只保留 1 项 -> `valid:true`
+   - `source.chapters` 清空 -> `source.chapters`
 
 ## 截图或日志证据
 
@@ -41,6 +42,14 @@ build: shared/server/web passed
 | 错误与边界处理 | 5/5 | 缺字段、枚举、数组最小项均返回精确路径；坏入参走 400。 |
 | UI 可用性 | 5/5 | 本轮无 UI 范围，不引入前端回归。 |
 | 可维护性 | 5/5 | 校验器独立在 server `validate` 模块，P1-VALIDATE-002 可继续接应用层校验。 |
+
+## 2026-06-07 更新：解除章节数限制
+
+本轮将结构校验中的 `source.chapters.minItems` 从 3 调整为 1：
+
+- 1 章 screenplay 现在是合法结构，且通过应用层引用校验后返回 `valid:true`。
+- 空 `source.chapters` 仍会返回 `valid:false`，错误路径为 `source.chapters`，message 为 `至少需要 1 项`。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test` 已通过，server 5 files / 30 tests。
 
 ## 是否放行
 

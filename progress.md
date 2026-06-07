@@ -1,5 +1,185 @@
 # Progress Log
 
+## 2026-06-07 - Chapter Count Limit Removal
+
+目标：按最新题意解除章节数限制。原题“至少处理三章以上的小说”表示系统至少要能处理 3 章以上长输入，不表示只能处理 3 章以上输入；当前行为应允许 1 章、2 章和更多章节进入生成路径。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/server/src/routes/chapters.ts`：移除 `/api/chapters/split` 的 `chapters.length < 3` 拦截；2 章输入现在返回 HTTP 200 和有序 `Chapter[]`。
+- 更新 `apps/server/src/routes/screenplay.ts`：multi-stage pipeline 不再拦截 1/2 章；仅保留 0 章 `BAD_REQUEST`，并移除 single-stage prompt 中“三章以上”和 `source.chapters 至少 3 项` 的要求。
+- 更新 `packages/shared/src/schema.ts`：`source.chapters.minItems` 从 3 改为 1。
+- 更新 `apps/web/src/ui-states.tsx`：generation checking 文案改为“识别章节结构”，空输入提示不再要求 3 章。
+- 更新 `apps/server/tests/chapter-split-route.test.ts`：2 章 fixture 断言 HTTP 200。
+- 更新 `apps/server/tests/yaml-validate-route.test.ts`：1 章 screenplay 断言 `valid:true`，空 `source.chapters` 仍断言 `至少需要 1 项`。
+- 更新 `apps/server/tests/pipeline-route.test.ts`：新增 2 章 multi-stage pipeline 正向用例。
+- 更新 `apps/web/tests/ui/p5-polish.spec.ts`：2 章中文小说不再断言拦截，而是断言 split 和 generate 都被调用，YAML 校验通过。
+- 同步 `README.md`、`AGENTS.md`、`docs/design.md`、`docs/engineering.md`、`docs/yaml-schema.md`、`docs/contracts/*`、`docs/qa/*`、`feature_list.json` 的当前语义。
+
+当前语义：
+
+- 空小说输入仍被拦截，提示 `请先输入小说正文，再生成剧本。`
+- `/api/chapters/split` 对 1 章、2 章和更多章节返回 HTTP 200。
+- `/api/screenplay/generate` 的 multi-stage 路径允许 1 章或更多章节；0 章仍返回 `400 BAD_REQUEST`。
+- YAML schema 只要求 `source.chapters` 非空，不再要求最少 3 章。
+- 历史记录中关于 `TOO_FEW_CHAPTERS` / 少于 3 章拦截的段落属于旧需求验收记录，当前行为以本节、`feature_list.json`、contract 和 QA 更新为准。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 30 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 12 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build；shared 1 test、server 30 tests、web 3 tests 均通过，build 成功。
+- Chrome DevTools MCP 真实浏览器复核：通过。2 章中文小说路径显示 split `[200]`、generate `[200]`、validate `[200]`，页面 `校验通过`、`预览已更新`，截图 `H:\tmp\chapter-limit-removal-fullpage.png`，布局 `horizontalOverflow:false`。
+- 注：首次运行指定 `test:ui` 时发现旧 dev server 占用 `5173/8787`；确认是当前仓库 Vite/server 进程后停止，再重新运行通过。
+
+## 2026-06-07 - P5-DEMO-003 Demo Assets and Route
+
+目标：实现 `feature_list.json` 中的 `P5-DEMO-003`，补齐稳定合法 YAML、故意损坏 YAML、README 和 3 分钟 demo route。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `examples/screenplay-broken.yaml`：故意缺失 `project.title`，用于 demo 中展示精确校验错误。
+- 新增 `apps/web/src/demo-assets.ts`：集中导入 `examples/novel-sample.md`、`examples/screenplay-sample.yaml` 和 `examples/screenplay-broken.yaml`。
+- 更新 `apps/web/src/App.tsx`：识别 `/demo` route，预载合法 YAML，并接入合法/坏 YAML 切换。
+- 新增 `apps/web/src/components/DemoRoutePanel.tsx`：展示 3 分钟演示路线和 demo 操作按钮。
+- 新增 `apps/web/src/components/ValidationPanel.tsx`：拆出校验结果面板，避免 `App.tsx` 超过 lint 行数限制。
+- 新增 `apps/web/tests/ui/p5-demo.spec.ts`：覆盖 `/demo` 预载合法 YAML、切坏 YAML、恢复合法 YAML。
+- 更新 `apps/server/tests/yaml-validate-route.test.ts`：确认稳定 fixture 合法，broken fixture 返回 `project.title` / `必填字段缺失`。
+- 更新 `README.md`：写清 `/demo` 入口、demo fixture 和 3 分钟演示节奏。
+- 新增 `docs/contracts/P5-DEMO-003.md`。
+- 新增 `docs/qa/P5-DEMO-003.md`。
+- 将 `feature_list.json` 中 `P5-DEMO-003.passes` 改为 `true`。
+
+关键实现说明：
+
+- `/demo` 初始加载 `examples/screenplay-sample.yaml`，随后仍通过现有 `/api/yaml/validate` 得到真实校验结果。
+- `加载坏 YAML` 加载 `examples/screenplay-broken.yaml`，不是前端假造错误；校验面板显示 `project.title` / `必填字段缺失`。
+- `加载合法 YAML` 可恢复校验通过、预览更新和导出可用。
+- 首页 `/` 保留原有 mock 生成路径；本轮不新增后端 API，不改变 provider、pipeline、validator 或 schema 语义。
+
+明确未做：
+
+- 未录制 demo 视频。
+- 未新增 PDF、DOCX、Final Draft、FDX 或后端导出。
+- 未新增真实外部 LLM 调用。
+- 未实现完整章节确认 UI、章节排序、章节编辑或手动重切章。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 28 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' build`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-demo.spec.ts`：通过，Chromium 2 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 12 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator Chrome DevTools MCP 复核：PASS。
+  - 打开 `http://127.0.0.1:5173/demo`，确认初始合法 YAML、坏 YAML、恢复合法 YAML 三段路径。
+  - Network 显示三次 `POST /api/yaml/validate [200]`。
+  - full-page screenshot：`H:\tmp\P5-DEMO-003-fullpage.png`。
+  - 布局指标：`horizontalOverflow:false`、`clippedCount:0`。
+- evaluator 子代理 `019ea0d9-a041-7d50-ba8d-0d9af663168e`：PASS。
+  - 使用 Chrome DevTools MCP 独立完成真实页面交互、Network 复核和视觉检查。
+  - Screenshot：`H:\tmp\P5-DEMO-003-evaluator-fullpage.png`。
+  - 确认坏 YAML 返回 `{"valid":false,"errors":[{"path":"project.title","message":"必填字段缺失"}],"warnings":[]}`。
+
+状态确认：
+
+- `P5-DEMO-003` 已具备 contract、QA 报告、server fixture 测试、Playwright UI 覆盖、Chrome DevTools MCP generator/evaluator 证据、`pnpm verify` 和完整 `pnpm test:ui` 证据，可标记 `passes:true`。
+- 当前 `feature_list.json` 中全部 feature 均为 `passes:true`。
+
+## 2026-06-07 - P5-POLISH-002 Loading Empty Error States
+
+目标：实现 `feature_list.json` 中的 `P5-POLISH-002`，统一 generation、validation、export 路径的 loading、empty、error 状态，让用户能看清当前阶段、错误来源和导出可用性。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/web/src/App.tsx`：新增 generation 子阶段状态、生成请求防重入、generation 状态提示、export 状态提示、validation request error 稳定测试标识；为两个 textarea 补 `id/name`。
+- 新增 `apps/web/src/ui-states.tsx`：集中 generation / validation / export 状态文案和错误阶段格式化。
+- 新增 `apps/web/src/download.ts`：拆出导出文件名、Blob 下载和结尾换行 helper，避免 `App.tsx` 继续膨胀。
+- 扩展 `apps/web/tests/ui/p5-polish.spec.ts`：覆盖慢生成 loading、防重复提交、生成 500、导出空态、校验中导出暂停、校验 500、业务校验失败导出暂停。
+- 新增 `docs/contracts/P5-POLISH-002.md`。
+- 新增 `docs/qa/P5-POLISH-002.md`。
+- 将 `feature_list.json` 中 `P5-POLISH-002.passes` 改为 `true`。
+
+关键实现说明：
+
+- `handleGenerate` 使用 `generateInFlightRef` 防止同一轮生成重复提交；loading 期间按钮 disabled。
+- generation 状态区显示：
+  - 初始：`等待生成：会先检查章节数量，再调用剧本生成接口。`
+  - 章节预检：`正在检查章节数量，确认至少 3 个章节后再进入生成。`
+  - 生成 YAML：`正在生成剧本 YAML，请稍等，按钮已暂时锁定。`
+  - 完成：`最近一次生成已完成，YAML 已进入右侧工作区。`
+  - 失败：`生成没有完成，请看下方具体阶段提示。`
+- generation server error 会显示具体 API 路径，例如 `剧本生成阶段失败（/api/screenplay/generate）：mock provider timeout`。
+- validation request error 会显示具体 API 路径，例如 `校验阶段失败（/api/yaml/validate）：validator service unavailable`。
+- export 状态区区分空态、校验中、校验请求失败、业务校验失败和可导出。
+- 空 YAML、校验中、校验请求失败、业务校验失败时，YAML / Markdown 导出按钮均 disabled。
+- 本轮没有新增后端 API，没有修改 provider、pipeline、validator、schema 或 `examples/*`。
+
+明确未做：
+
+- 未实现 `P5-DEMO-003` 的 demo 资产、README 或 3 分钟 demo route。
+- 未新增 PDF、DOCX、Final Draft 等导出格式。
+- 未实现章节确认 UI、手动重切章或章节编辑。
+- 未改变 `P5-POLISH-001` 的少于 3 章拦截语义。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 10 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator Chrome DevTools MCP 复核：
+  - 初始空态：YAML `0` 字符，校验 `未校验`，导出按钮 disabled，导出区显示暂无可导出的 YAML。
+  - 慢生成：浏览器上下文延迟 `/api/screenplay/generate` 后，页面显示 `正在生成剧本 YAML，请稍等，按钮已暂时锁定。`，生成按钮 `生成中...` 且 disabled。
+  - 正常生成：YAML 字符数 `3347`，校验通过，预览更新，导出启用。
+  - 业务校验失败：删除 `project.title` 后显示 `project.title` / `必填字段缺失`，预览暂停，导出暂停。
+  - 校验请求失败：模拟 `/api/yaml/validate` 500，页面显示接口路径，预览和导出暂停。
+  - 生成请求失败：模拟 `/api/screenplay/generate` 500，页面显示接口路径，YAML 保持空态，导出 disabled。
+  - full-page screenshot：`H:\tmp\P5-POLISH-002-fullpage.png`。
+  - 布局指标：`scrollWidth === innerWidth`，无横向溢出。
+- evaluator 子代理 `019ea0b9-cb51-7ac0-b6f4-878ba2fe580b`：PASS。
+  - 使用 Chrome DevTools MCP 完成真实页面交互、延迟/错误模拟、full-page screenshot 和视觉检查。
+  - Screenshot：`H:\tmp\P5-POLISH-002-evaluator-fullpage.png`。
+  - 慢生成双击后只有 1 次 `/api/screenplay/generate`。
+  - `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，5 passed。
+  - evaluator 停止本轮 dev server 后确认 `5173/8787` 均无 `Listen`。
+
+状态确认：
+
+- `P5-POLISH-002` 已具备 contract、QA 报告、Playwright UI 覆盖、Chrome DevTools MCP generator/evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001`、`P5-POLISH-002` 为 `passes:true`。
+- `P5-DEMO-003` 仍保持 `passes:false`。
+
 ## 2026-06-07 - P5-POLISH-001 Input Chapter Count Guard
 
 目标：实现 `feature_list.json` 中的 `P5-POLISH-001`，让少于 3 章的小说输入在前端生成前被友好拦截，并明确告诉用户至少需要 3 个章节、当前识别到几个章节。
