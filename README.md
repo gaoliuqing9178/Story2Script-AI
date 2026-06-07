@@ -189,9 +189,12 @@ node scripts/read-dev-logs.js
 | `POST` | `/api/chapters/split` | 已实现。切分小说章节，1 章及以上都返回有序 `Chapter[]`。 |
 | `POST` | `/api/chapters/analyze` | 已实现。对 `Chapter[]` 做逐章分析，mock/openai provider 均走 provider 层。 |
 | `POST` | `/api/screenplay/generate` | 已实现。无 `chapters`/`analyses` 时走单阶段生成；传入后走多阶段 pipeline。 |
+| `POST` | `/api/screenplay/generate/stream` | 已实现。返回 NDJSON 事件流，前端主路径用它增量渲染 YAML。 |
 | `POST` | `/api/yaml/validate` | 已实现。返回结构校验与应用层校验结果。 |
 | `POST` | `/api/yaml/repair` | 已实现。执行 bounded YAML repair，并返回 repair metadata。 |
 | `POST` | `/api/export` | 后端占位，当前返回 `501 NOT_IMPLEMENTED`。已验收的导出功能目前在前端完成。 |
+
+`/api/screenplay/generate/stream` 的事件包括 `status`、`yaml_reset`、`yaml_delta`、`yaml_snapshot`、`validation`、`done` 和 `error`。前端会先把 `/api/chapters/split` 得到的 `Chapter[]` 传给 stream 端点，因此真实 LLM 默认走多阶段 pipeline 和 bounded repair；后端会在模型 YAML 可解析时补齐缺失的 `project.language: zh-CN` 再进入校验。
 
 示例：章节切分
 

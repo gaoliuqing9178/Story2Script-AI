@@ -9,6 +9,26 @@ export interface ProviderRequest {
 
 export interface LLMProvider {
   complete(input: ProviderRequest): Promise<string>;
+  stream(input: ProviderRequest): AsyncIterable<string>;
+}
+
+export async function completeWithOptionalStream(
+  provider: LLMProvider,
+  input: ProviderRequest,
+  onDelta?: (delta: string) => void
+) {
+  if (!onDelta) {
+    return provider.complete(input);
+  }
+
+  let text = '';
+
+  for await (const delta of provider.stream(input)) {
+    text += delta;
+    onDelta(delta);
+  }
+
+  return text;
 }
 
 export function createProvider(): LLMProvider {

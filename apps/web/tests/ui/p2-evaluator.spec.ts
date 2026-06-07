@@ -24,31 +24,44 @@ const evaluatorYaml = [
 ].join('\n');
 
 test('evaluator: sends edited novel text to screenplay generate API', async ({ page }) => {
-  await page.route('**/api/screenplay/generate', async (route) => {
+  await page.route('**/api/screenplay/generate/stream', async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        yaml: evaluatorYaml,
-        validation: {
-          valid: true,
-          errors: [],
-          warnings: []
-        }
-      })
+      contentType: 'application/x-ndjson',
+      body: buildGenerateStreamBody(evaluatorYaml)
     });
   });
 
   await page.goto('/');
   await page.getByRole('textbox', { name: '小说输入' }).fill(evaluatorNovel);
 
-  const requestPromise = page.waitForRequest('**/api/screenplay/generate');
+  const requestPromise = page.waitForRequest('**/api/screenplay/generate/stream');
   await page.getByRole('button', { name: '用样例生成' }).click();
   const request = await requestPromise;
 
   expect(request.postDataJSON()).toMatchObject({
-    novel: evaluatorNovel
+    novel: evaluatorNovel,
+    chapters: expect.any(Array)
   });
 
   await expect(page.getByTestId('yaml-output')).toHaveValue(/title: "Evaluator Fixture"/);
 });
+
+function buildGenerateStreamBody(yaml: string) {
+  const validation = {
+    valid: true,
+    errors: [],
+    warnings: []
+  };
+
+  return [
+    { type: 'yaml_reset', source: 'test' },
+    { type: 'yaml_delta', delta: yaml, source: 'test' },
+    { type: 'yaml_snapshot', yaml, source: 'test' },
+    { type: 'validation', validation },
+    { type: 'done', yaml, validation }
+  ]
+    .map((event) => JSON.stringify(event))
+    .join('\n')
+    .concat('\n');
+}

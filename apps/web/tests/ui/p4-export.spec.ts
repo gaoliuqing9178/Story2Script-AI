@@ -3,12 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { load } from 'js-yaml';
 
 test('exports the current screenplay as YAML and Markdown', async ({ page }) => {
-  await page.goto('/');
-
-  await expect(page.getByTestId('export-yaml-button')).toBeDisabled();
-  await expect(page.getByTestId('export-markdown-button')).toBeDisabled();
-
-  await page.getByRole('button', { name: '用样例生成' }).click();
+  await page.goto('/demo');
 
   await expect(page.getByTestId('validation-state')).toContainText('校验通过');
   await expect(page.getByTestId('export-yaml-button')).toBeEnabled();

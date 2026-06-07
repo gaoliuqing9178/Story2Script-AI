@@ -1,20 +1,19 @@
 import type { ValidationResult } from '@story2script/shared';
-import { useEffect, useRef, useState } from 'react';
-import { splitNovelChapters } from './api/chapters';
-import { generateMockScreenplay, validateYaml } from './api/screenplay';
+import { useEffect, useState } from 'react';
+import { validateYaml } from './api/screenplay';
 import { DemoRoutePanel } from './components/DemoRoutePanel';
+import { HistorySidebar } from './components/HistorySidebar';
 import { ScreenplayPreview } from './components/ScreenplayPreview';
 import { ValidationPanel } from './components/ValidationPanel';
 import { brokenDemoYaml, demoNovelText, isDemoRoutePath, stableDemoYaml } from './demo-assets';
-import { buildExportFileName, downloadTextFile, ensureTrailingNewline } from './download';
-import { buildScreenplayMarkdown, parseScreenplayYaml } from './render/screenplay';
 import {
   formatValidationRequestError,
-  getExportStateText,
   getGenerateButtonLabel,
-  getGenerateErrorMessage,
   renderGenerationState
 } from './ui-states';
+import { type GenerationHistoryItem, useGenerationHistory } from './useGenerationHistory';
+import { useScreenplayExport } from './useScreenplayExport';
+import { useScreenplayGeneration } from './useScreenplayGeneration';
 import { useYamlStream } from './useYamlStream';
 
 export function App() {
@@ -22,20 +21,48 @@ export function App() {
   const [novelText, setNovelText] = useState(demoNovelText);
   const [yaml, setYaml] = useState(() => (isDemoRoute ? stableDemoYaml : ''));
   const [validation, setValidation] = useState<ValidationResult | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [generationPhase, setGenerationPhase] = useState<'idle' | 'checking' | 'generating'>('idle');
   const [validationStatus, setValidationStatus] = useState<'idle' | 'validating' | 'error'>(() =>
     isDemoRoute ? 'validating' : 'idle'
   );
-  const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
-  const [exportError, setExportError] = useState('');
-  const generateInFlightRef = useRef(false);
-  const { cancelYamlStream, streamYaml, yamlRenderStatus } = useYamlStream({
+  const {
+    appendYamlDelta,
+    beginYamlStream,
+    cancelYamlStream,
+    finishYamlStream,
+    replaceYamlSnapshot,
+    resetYamlStream,
+    yamlRenderStatus
+  } = useYamlStream({
     setValidation,
     setValidationError,
     setValidationStatus,
     setYaml
+  });
+  const {
+    canExport,
+    exportError,
+    exportStateText,
+    handleExportMarkdown,
+    handleExportYaml,
+    hasYaml,
+    setExportError
+  } = useScreenplayExport({
+    validation,
+    validationStatus,
+    yaml
+  });
+  const history = useGenerationHistory();
+  const generation = useScreenplayGeneration({
+    appendYamlDelta,
+    beginYamlStream,
+    cancelYamlStream,
+    finishYamlStream,
+    novelText,
+    onGenerationDone: history.addGeneratedYaml,
+    replaceYamlSnapshot,
+    resetYamlStream,
+    setExportError
   });
 
   useEffect(() => {
@@ -83,43 +110,12 @@ export function App() {
     };
   }, [yaml, yamlRenderStatus]);
 
-  async function handleGenerate() {
-    if (generateInFlightRef.current) {
-      return;
-    }
-
-    let phase: 'checking' | 'generating' = 'checking';
-    generateInFlightRef.current = true;
-    setStatus('loading');
-    setGenerationPhase(phase);
-    setError('');
-    setExportError('');
-
-    try {
-      await splitNovelChapters(novelText);
-      phase = 'generating';
-      setGenerationPhase(phase);
-      const result = await generateMockScreenplay(novelText);
-      await streamYaml(result.yaml, result.validation);
-      setStatus('idle');
-      setGenerationPhase('idle');
-    } catch (cause) {
-      setStatus('error');
-      setGenerationPhase('idle');
-      setError(getGenerateErrorMessage(cause, phase));
-    } finally {
-      generateInFlightRef.current = false;
-    }
-  }
-
   function loadDemoYaml(nextYaml: string) {
     cancelYamlStream();
     setValidation(null);
     setValidationStatus('validating');
     setValidationError('');
-    setStatus('idle');
-    setGenerationPhase('idle');
-    setError('');
+    generation.reset();
     setExportError('');
 
     if (nextYaml === yaml) {
@@ -138,60 +134,25 @@ export function App() {
     setYaml(nextYaml);
   }
 
+  function loadHistoryItem(item: GenerationHistoryItem) {
+    cancelYamlStream();
+    generation.abort();
+    generation.reset();
+    setExportError('');
+    setValidationError('');
+    setValidation(item.validation);
+    setValidationStatus(item.validation ? 'idle' : 'validating');
+    setYaml(item.yaml);
+  }
+
   function resetDemoNovel() {
     setNovelText(demoNovelText);
-    setError('');
-  }
-
-  const errors = validation?.errors ?? [];
-  const hasYaml = yaml.trim().length > 0;
-  const canExport = hasYaml && validationStatus === 'idle' && validation?.valid === true;
-  const exportStateText = getExportStateText({
-    errors,
-    hasYaml,
-    validation,
-    validationStatus
-  });
-
-  function handleExportYaml() {
-    if (!canExport) {
-      setExportError('请先生成并通过校验后再导出。');
-      return;
-    }
-
-    const screenplay = parseScreenplayYaml(yaml);
-    downloadTextFile({
-      content: ensureTrailingNewline(yaml),
-      filename: buildExportFileName(screenplay?.project.title, 'yaml'),
-      mimeType: 'application/x-yaml;charset=utf-8'
-    });
-    setExportError('');
-  }
-
-  function handleExportMarkdown() {
-    if (!canExport) {
-      setExportError('请先生成并通过校验后再导出。');
-      return;
-    }
-
-    const screenplay = parseScreenplayYaml(yaml);
-
-    if (!screenplay) {
-      setExportError('当前 YAML 已校验通过，但前端无法解析为 Markdown。');
-      return;
-    }
-
-    downloadTextFile({
-      content: buildScreenplayMarkdown(screenplay),
-      filename: buildExportFileName(screenplay.project.title, 'md'),
-      mimeType: 'text/markdown;charset=utf-8'
-    });
-    setExportError('');
+    generation.setError('');
   }
 
   return (
     <main className="min-h-screen bg-surface text-ink">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-[92rem] flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-2 border-b border-line pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium text-accent">{isDemoRoute ? '3-minute demo route' : 'Mock-first harness'}</p>
@@ -210,13 +171,20 @@ export function App() {
           />
         ) : null}
 
-        <section className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <section className="grid flex-1 gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <HistorySidebar
+            currentYaml={yaml}
+            items={history.items}
+            onClear={history.clearHistory}
+            onLoad={loadHistoryItem}
+          />
+
           <div className="flex min-h-[420px] flex-col rounded border border-line bg-white">
             <div className="border-b border-line px-4 py-3">
               <h2 className="text-base font-semibold">小说输入</h2>
               <p className="mt-1 text-sm text-slate-600">默认 mock provider，生成结果会进入右侧 YAML 工作区。</p>
               <div className="mt-3" data-testid="generation-state" role="status" aria-live="polite">
-                {renderGenerationState({ generationPhase, hasYaml, status })}
+                {renderGenerationState({ generationPhase: generation.phase, hasYaml, status: generation.status })}
               </div>
             </div>
             <textarea
@@ -224,15 +192,15 @@ export function App() {
               value={novelText}
               onChange={(event) => {
                 setNovelText(event.target.value);
-                setError('');
+                generation.setError('');
               }}
               aria-label="小说输入"
               id="novel-input"
               name="novel"
             />
-            {error ? (
+            {generation.error ? (
               <div className="mx-4 mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900" data-testid="generation-error">
-                {error}
+                {generation.error}
               </div>
             ) : null}
             <div className="flex items-center justify-between border-t border-line px-4 py-3">
@@ -240,10 +208,10 @@ export function App() {
               <button
                 className="cursor-pointer rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-indigo-700 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-accent disabled:cursor-not-allowed disabled:bg-slate-400"
                 type="button"
-                onClick={handleGenerate}
-                disabled={status === 'loading'}
+                onClick={generation.handleGenerate}
+                disabled={generation.status === 'loading'}
               >
-                {getGenerateButtonLabel(status, generationPhase)}
+                {getGenerateButtonLabel(generation.status, generation.phase)}
               </button>
             </div>
           </div>
@@ -298,6 +266,7 @@ export function App() {
                 name="yaml"
                 onChange={(event) => {
                   cancelYamlStream();
+                  generation.abort();
                   setYaml(event.target.value);
                   setExportError('');
                 }}

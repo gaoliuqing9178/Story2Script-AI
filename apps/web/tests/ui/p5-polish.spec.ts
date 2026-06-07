@@ -16,7 +16,7 @@ test('allows generation when fewer than three chapters are detected', async ({ p
     splitRequests += 1;
     await route.continue();
   });
-  await page.route('**/api/screenplay/generate', async (route) => {
+  await page.route('**/api/screenplay/generate/stream', async (route) => {
     generateRequests += 1;
     await route.continue();
   });
@@ -26,7 +26,7 @@ test('allows generation when fewer than three chapters are detected', async ({ p
   await page.getByRole('button', { name: '用样例生成' }).click();
 
   await expect(page.getByTestId('validation-state')).toContainText('校验通过');
-  await expect(page.getByTestId('yaml-output')).toHaveValue(/schema_version: "1.0"/);
+  await expect(page.getByTestId('yaml-output')).toHaveValue(/schema_version: ['"]1\.0['"]/);
   await expect(page.getByTestId('generation-error')).toHaveCount(0);
 
   expect(splitRequests).toBe(1);
@@ -41,7 +41,7 @@ test('shows generation loading and prevents duplicate generation submits', async
     splitRequests += 1;
     await route.continue();
   });
-  await page.route('**/api/screenplay/generate', async (route) => {
+  await page.route('**/api/screenplay/generate/stream', async (route) => {
     generateRequests += 1;
     await new Promise((resolve) => {
       setTimeout(resolve, 700);
@@ -68,7 +68,7 @@ test('shows generation loading and prevents duplicate generation submits', async
 });
 
 test('shows the generation API path when the server returns an error', async ({ page }) => {
-  await page.route('**/api/screenplay/generate', async (route) => {
+  await page.route('**/api/screenplay/generate/stream', async (route) => {
     await route.fulfill({
       status: 500,
       contentType: 'application/json',
@@ -86,7 +86,7 @@ test('shows the generation API path when the server returns an error', async ({ 
   const generationError = page.getByTestId('generation-error');
   await expect(page.getByTestId('generation-state')).toContainText('生成没有完成');
   await expect(generationError).toContainText('剧本生成阶段失败');
-  await expect(generationError).toContainText('/api/screenplay/generate');
+  await expect(generationError).toContainText('/api/screenplay/generate/stream');
   await expect(generationError).toContainText('mock provider timeout');
   await expect(page.getByTestId('yaml-output')).toHaveValue('');
 });
@@ -140,7 +140,7 @@ test('keeps export paused when the current YAML has validation errors', async ({
 
   const editor = page.getByRole('textbox', { name: 'YAML 编辑器' });
   const originalYaml = await editor.inputValue();
-  const brokenYaml = originalYaml.replace(/\r?\n {2}title: "雨夜归来"\r?\n/, '\n');
+  const brokenYaml = originalYaml.replace(/\r?\n {2}title: .+\r?\n/, '\n');
 
   await editor.fill(brokenYaml);
 
