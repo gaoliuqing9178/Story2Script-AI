@@ -1,6 +1,7 @@
 import type { ValidationResult } from '@story2script/shared';
 import { useEffect, useState } from 'react';
 import { generateMockScreenplay, validateYaml } from './api/screenplay';
+import { ScreenplayPreview } from './components/ScreenplayPreview';
 
 const sampleText = `# 第一章 雨夜归来
 
@@ -199,6 +200,8 @@ export function App() {
                 ) : null}
               </div>
             </section>
+
+            <ScreenplayPreview hasYaml={hasYaml} validation={validation} validationStatus={validationStatus} yaml={yaml} />
           </div>
         </section>
       </div>

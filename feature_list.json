@@ -137,7 +137,7 @@
         "Verify preview is disabled or clearly marked when validation fails.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P4-EXPORT-003",

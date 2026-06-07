@@ -1,5 +1,72 @@
 # Progress Log
 
+## 2026-06-06 - P4-PREVIEW-002 Screenplay Preview
+
+目标：实现 `feature_list.json` 中的 `P4-PREVIEW-002`，让前端复用当前 YAML editor 的事实源，在 validation pass 时渲染 action、dialogue、narration、transition、inner_voice 五类 beat，并在 validation fail 时明确暂停预览。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/web/src/render/screenplay.ts`：前端 YAML 解析、角色/地点反查、场景排序和五类 beat 预览数据映射。
+- 新增 `apps/web/src/render/screenplay.test.ts`：覆盖场景 metadata 与 action/dialogue/narration/transition/inner_voice 五类 beat 映射。
+- 新增 `apps/web/src/components/ScreenplayPreview.tsx`：独立预览面板；只在 `ValidationResult.valid === true` 且校验空闲时渲染当前 YAML；校验中、请求失败或业务校验失败时显示暂停态。
+- 更新 `apps/web/src/App.tsx`：在右侧工作区接入 `ScreenplayPreview`，继续以 YAML textarea value 为事实源。
+- 更新 `apps/web/package.json` 与 `pnpm-lock.yaml`：为 web 显式加入 `js-yaml` 和 `@types/js-yaml`，用于前端解析已校验通过的 YAML。
+- 新增 `apps/web/tests/ui/p4-preview.spec.ts`：真实浏览器覆盖预览场景头部、五类 beat 和校验失败暂停态。
+- 新增 `docs/contracts/P4-PREVIEW-002.md`。
+- 新增 `docs/qa/P4-PREVIEW-002.md`。
+- 将 `feature_list.json` 中 `P4-PREVIEW-002.passes` 改为 `true`。
+
+关键实现说明：
+
+- 本轮没有修改后端 validator，也没有复制校验规则到前端；前端预览只信任已有 `ValidationResult.valid`。
+- `yaml` textarea value 仍是前端唯一事实源；预览不维护第二份用户可编辑数据。
+- 预览场景头部显示 `第 N 场`、标题、地点、时间和人物。
+- beat 渲染语义：
+  - `action`：普通动作段落。
+  - `dialogue`：角色名 + 对白内容。
+  - `narration`：`旁白：` 前缀。
+  - `transition`：居中转场文本。
+  - `inner_voice`：`（内心）角色名` + 内容。
+- validation fail / request fail / validating 时，预览显示暂停态，避免展示过期通过内容。
+
+明确未做：
+
+- 未实现 `P4-EXPORT-003` 的 YAML / Markdown 导出。
+- 未引入 Monaco 或 CodeMirror。
+- 未修改 `examples/*` demo fixture。
+- 未改弱后端 validator 规则。
+- 未实现 `P5-POLISH-001` 的少于 3 章前端友好拦截。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 2 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 4 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- evaluator 子代理 `019e9d9c-de7d-7db2-87a6-9e29323b116f`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173/`。
+  - 完成真实页面交互和 full-page screenshot。
+  - 截图路径：`H:\tmp\P4-PREVIEW-002-fullpage.png`。
+  - 点击“用样例生成”后，`剧本预览` 显示 `预览已更新`。
+  - 场景头部显示 `第 1 场 雨夜归来`、`地点：旧火车站`、`时间：夜晚`、`人物：林舟、沈念`。
+  - 五类 beat 均可见：action、dialogue、narration、transition、inner_voice。
+  - 破坏 YAML 后，校验区域显示 `project.title` 与 `必填字段缺失`，预览区域显示 `预览已暂停` 和 `当前 YAML 未通过校验，预览已暂停。`
+  - 视觉检查 PASS：页面非空白，无明显错位、遮挡、按钮截断、文字溢出或横向滚动。
+
+状态确认：
+
+- `P4-PREVIEW-002` 已具备 contract、QA 报告、Vitest 预览映射覆盖、Playwright UI 覆盖、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P4-EDITOR-001 YAML Editor and Debounced Validation
 
 目标：实现 `feature_list.json` 中的 `P4-EDITOR-001`，让前端 YAML editor 支持直接编辑、编辑后防抖校验，并在校验面板展示精确 validation error path。
