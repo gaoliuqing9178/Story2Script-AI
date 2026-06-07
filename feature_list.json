@@ -92,7 +92,7 @@
         "Submit fewer than 3 chapters and verify HTTP 422 TOO_FEW_CHAPTERS.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P3-PIPELINE-002",
@@ -107,7 +107,7 @@
         "Verify successful repair turns validation red to green without rewriting story objects.",
         "Run pnpm verify."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P4-EDITOR-001",
@@ -122,7 +122,7 @@
         "Break project.title and verify the validation panel shows a precise path.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P4-PREVIEW-002",
@@ -137,7 +137,7 @@
         "Verify preview is disabled or clearly marked when validation fails.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P4-EXPORT-003",

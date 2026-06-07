@@ -1,5 +1,253 @@
 # Progress Log
 
+## 2026-06-06 - P4-PREVIEW-002 Screenplay Preview
+
+目标：实现 `feature_list.json` 中的 `P4-PREVIEW-002`，让前端复用当前 YAML editor 的事实源，在 validation pass 时渲染 action、dialogue、narration、transition、inner_voice 五类 beat，并在 validation fail 时明确暂停预览。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/web/src/render/screenplay.ts`：前端 YAML 解析、角色/地点反查、场景排序和五类 beat 预览数据映射。
+- 新增 `apps/web/src/render/screenplay.test.ts`：覆盖场景 metadata 与 action/dialogue/narration/transition/inner_voice 五类 beat 映射。
+- 新增 `apps/web/src/components/ScreenplayPreview.tsx`：独立预览面板；只在 `ValidationResult.valid === true` 且校验空闲时渲染当前 YAML；校验中、请求失败或业务校验失败时显示暂停态。
+- 更新 `apps/web/src/App.tsx`：在右侧工作区接入 `ScreenplayPreview`，继续以 YAML textarea value 为事实源。
+- 更新 `apps/web/package.json` 与 `pnpm-lock.yaml`：为 web 显式加入 `js-yaml` 和 `@types/js-yaml`，用于前端解析已校验通过的 YAML。
+- 新增 `apps/web/tests/ui/p4-preview.spec.ts`：真实浏览器覆盖预览场景头部、五类 beat 和校验失败暂停态。
+- 新增 `docs/contracts/P4-PREVIEW-002.md`。
+- 新增 `docs/qa/P4-PREVIEW-002.md`。
+- 将 `feature_list.json` 中 `P4-PREVIEW-002.passes` 改为 `true`。
+
+关键实现说明：
+
+- 本轮没有修改后端 validator，也没有复制校验规则到前端；前端预览只信任已有 `ValidationResult.valid`。
+- `yaml` textarea value 仍是前端唯一事实源；预览不维护第二份用户可编辑数据。
+- 预览场景头部显示 `第 N 场`、标题、地点、时间和人物。
+- beat 渲染语义：
+  - `action`：普通动作段落。
+  - `dialogue`：角色名 + 对白内容。
+  - `narration`：`旁白：` 前缀。
+  - `transition`：居中转场文本。
+  - `inner_voice`：`（内心）角色名` + 内容。
+- validation fail / request fail / validating 时，预览显示暂停态，避免展示过期通过内容。
+
+明确未做：
+
+- 未实现 `P4-EXPORT-003` 的 YAML / Markdown 导出。
+- 未引入 Monaco 或 CodeMirror。
+- 未修改 `examples/*` demo fixture。
+- 未改弱后端 validator 规则。
+- 未实现 `P5-POLISH-001` 的少于 3 章前端友好拦截。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 2 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 4 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- evaluator 子代理 `019e9d9c-de7d-7db2-87a6-9e29323b116f`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173/`。
+  - 完成真实页面交互和 full-page screenshot。
+  - 截图路径：`H:\tmp\P4-PREVIEW-002-fullpage.png`。
+  - 点击“用样例生成”后，`剧本预览` 显示 `预览已更新`。
+  - 场景头部显示 `第 1 场 雨夜归来`、`地点：旧火车站`、`时间：夜晚`、`人物：林舟、沈念`。
+  - 五类 beat 均可见：action、dialogue、narration、transition、inner_voice。
+  - 破坏 YAML 后，校验区域显示 `project.title` 与 `必填字段缺失`，预览区域显示 `预览已暂停` 和 `当前 YAML 未通过校验，预览已暂停。`
+  - 视觉检查 PASS：页面非空白，无明显错位、遮挡、按钮截断、文字溢出或横向滚动。
+
+状态确认：
+
+- `P4-PREVIEW-002` 已具备 contract、QA 报告、Vitest 预览映射覆盖、Playwright UI 覆盖、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
+## 2026-06-06 - P4-EDITOR-001 YAML Editor and Debounced Validation
+
+目标：实现 `feature_list.json` 中的 `P4-EDITOR-001`，让前端 YAML editor 支持直接编辑、编辑后防抖校验，并在校验面板展示精确 validation error path。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/web/src/api/screenplay.ts`：新增 `validateYaml(yaml)`，调用 `POST /api/yaml/validate`；生成 API 失败时优先读取后端 error message。
+- 更新 `apps/web/src/App.tsx`：将右侧 YAML 输出改为可编辑 textarea；新增 validation 状态、防抖校验、错误/警告面板；生成后接收初始 validation，编辑后以 `/api/yaml/validate` 为准。
+- 更新 `apps/web/tests/ui/smoke.spec.ts`：适配 YAML 输出从 `<pre>` 改为 textarea value。
+- 更新 `apps/web/tests/ui/p2-evaluator.spec.ts`：使用明确 aria label 定位小说输入和生成按钮，避免被新增 YAML textarea 干扰。
+- 新增 `apps/web/tests/ui/p4-editor.spec.ts`：覆盖生成 YAML、直接编辑、删除 `project.title`、等待防抖校验并显示 `project.title` / `必填字段缺失`。
+- 新增 `docs/contracts/P4-EDITOR-001.md`。
+- 新增 `docs/qa/P4-EDITOR-001.md`。
+- 将 `feature_list.json` 中 `P4-EDITOR-001.passes` 改为 `true`。
+
+关键实现说明：
+
+- 本轮没有引入 Monaco 或 CodeMirror，先用原生 textarea 完成可直接编辑和校验闭环，避免扩大依赖面。
+- 防抖间隔为 350ms；编辑期间显示 `校验中...`，防抖完成后展示后端返回的 `ValidationResult`。
+- 校验错误逐条展示 `path` 和 `message`，例如 `project.title` / `必填字段缺失`。
+- `yaml` textarea value 是前端 YAML 的事实源；预览和导出仍未实现。
+
+明确未做：
+
+- 未实现 `P4-PREVIEW-002` 的剧本预览。
+- 未实现 `P4-EXPORT-003` 的 YAML / Markdown 导出。
+- 未修改 `examples/*` demo fixture。
+- 未放宽后端 validator 规则。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 无 Vitest 单测且 `--passWithNoTests` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 3 passed。
+- evaluator 子代理 `019e9d01-64e9-7390-b4ea-1365e1734420`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173`。
+  - 完成真实页面交互和 full-page screenshot。
+  - 截图路径：`H:\tmp\P4-EDITOR-001-fullpage.png`。
+  - 点击“用样例生成”后，YAML 编辑器出现 mock YAML，校验结果最终通过。
+  - 删除 `  title: "雨夜归来"` 后，防抖期间只显示 `校验中...`，防抖完成后显示 `project.title` 和 `必填字段缺失`。
+  - 视觉检查 PASS：页面非空白，无明显错位、遮挡、按钮截断、文字溢出或横向滚动。
+
+状态确认：
+
+- `P4-EDITOR-001` 已具备 contract、QA 报告、Playwright 覆盖、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
+## 2026-06-06 - P3-PIPELINE-002 Multi-stage Pipeline and Bounded Repair
+
+目标：实现 `feature_list.json` 中的 `P3-PIPELINE-002`，让系统可以执行 chapter analysis、screenplay bible generation、scene generation、validation 和 bounded structure repair。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/server/src/pipeline/prompts.ts`：集中维护 analysis、bible、scene generation、repair 的 prompt 与 stage marker。
+- 新增 `apps/server/src/pipeline/types.ts`：定义 `ScreenplayBible`、`RepairResult`、`MultiStagePipelineInput`、`MultiStagePipelineResult`。
+- 新增 `apps/server/src/pipeline/json.ts`：解析 provider 返回的 JSON，兼容 JSON code fence。
+- 新增 `apps/server/src/pipeline/analyze.ts`：实现逐章分析。
+- 新增 `apps/server/src/pipeline/bible.ts`：实现剧本圣经生成。
+- 新增 `apps/server/src/pipeline/multistage.ts`：编排 analyze -> bible -> scene generation -> validation -> repair。
+- 新增 `apps/server/src/pipeline/repair.ts`：实现 YAML repair，修复次数由 `repair_max_retries` 或 `REPAIR_MAX_RETRY` 限制，默认 2，最大钳制到 5。
+- 新增 `apps/server/src/routes/request-utils.ts`：复用 request parsing、adaptation type、chapters/analyses 解析和 repair retry 读取。
+- 更新 `apps/server/src/routes/chapters.ts`：`POST /api/chapters/analyze` 从 501 改为真实分析接口。
+- 更新 `apps/server/src/routes/screenplay.ts`：保留旧单阶段 generate；当请求带 `chapters` 或 `analyses` 时运行 multi-stage pipeline，并返回 `pipeline` metadata。
+- 更新 `apps/server/src/routes/yaml.ts`：`POST /api/yaml/repair` 从 501 改为真实 bounded repair 接口。
+- 更新 `apps/server/src/provider/mock.ts`：默认 mock provider 可按 stage marker 返回章节分析 JSON、剧本圣经 JSON、动态 YAML 和 repair YAML。
+- 更新 `apps/server/src/provider/openai.ts`：通用剥离 provider 返回的 code fence，兼容 JSON/YAML 阶段输出。
+- 新增 `apps/server/tests/pipeline-route.test.ts`：真实 Express app 覆盖 analyze、multi-stage generate、validation red->green repair 和 repair retry 上限。
+- 新增 `docs/contracts/P3-PIPELINE-002.md`。
+- 新增 `docs/qa/P3-PIPELINE-002.md`。
+- 将 `feature_list.json` 中 `P3-PIPELINE-002.passes` 改为 `true`。
+
+关键实现说明：
+
+- `POST /api/screenplay/generate` 向后兼容 P2 单阶段路径：不传 `chapters` 或 `analyses` 时仍走原单阶段 generate。
+- 传入 `chapters` 或 `analyses` 时，`/api/screenplay/generate` 运行 multi-stage pipeline，并返回 `pipeline.analyses`、`pipeline.bible`、`pipeline.initial_validation`、`pipeline.repair_attempts`、`pipeline.max_repair_attempts`。
+- `POST /api/chapters/analyze` 使用 provider 逐章生成 `ChapterAnalysis[]`；默认 mock 不联网。
+- `POST /api/yaml/repair` 会先运行本地 validator，再在 `valid:false` 且 attempts 未超上限时调用 provider 修复。
+- OpenAI-compatible 自动化验证使用本地 fake server，没有调用真实外部 OpenAI API。
+
+明确未做：
+
+- 未实现前端章节确认 UI。
+- 未实现 YAML editor、preview 或 export。
+- 未调用真实外部 OpenAI API。
+- 未修改 `examples/*` demo fixture。
+- 未将 `P4-*` 或 `P5-*` 标记为通过。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 test files、27 个 tests 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过，`eslint .` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- evaluator 子代理 `019e9c16-525e-78a2-9d49-108f9da2b6f7`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173/`。
+  - 完成页面 snapshot 和 full-page screenshot 视觉检查。
+  - 截图路径：`H:\tmp\P3-PIPELINE-002-fullpage.png`。
+  - 在浏览器上下文中通过 `fetch` 验证 5 章 split、analyze、multi-stage generate 和 bounded repair。
+  - `generate` 返回 `validation.valid === true`、`pipeline.analyses.length === 5`、`pipeline.bible`、`pipeline.initial_validation`、数字类型 `repair_attempts`。
+  - 删除 `project.title` 后调用 `/api/yaml/repair`，`repair.attempts === 1` 且 `validation.valid === true`。
+
+状态确认：
+
+- `P3-PIPELINE-002` 已具备 contract、QA 报告、真实 Express route 测试、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
+## 2026-06-06 - P3-PIPELINE-001 Chapter Splitting
+
+目标：实现 `feature_list.json` 中的 `P3-PIPELINE-001`，让 `POST /api/chapters/split` 支持中文章节标题、英文 `Chapter` 标题、Markdown 章节标题和 `---chapter---` 分隔符，并在少于 3 章时返回 422。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `apps/server/src/pipeline/split.ts`，实现本地 deterministic chapter splitting，不调用 LLM。
+- 新增 `apps/server/src/routes/chapters.ts`，实现 `POST /api/chapters/split`，并保留 `/api/chapters/analyze` Phase 3 后续占位。
+- 更新 `apps/server/src/routes/index.ts`，挂载 `chaptersRouter`。
+- 新增 `apps/server/tests/chapter-split-route.test.ts`，通过真实 Express app 覆盖中文标题、英文 `Chapter`、Markdown heading、`---chapter---` 前置/居中分隔符、少于 3 章 422、缺少 `text` 400。
+- 新增 `docs/contracts/P3-PIPELINE-001.md`。
+- 新增 `docs/qa/P3-PIPELINE-001.md`。
+- 将 `feature_list.json` 中 `P3-PIPELINE-001.passes` 改为 `true`。
+
+关键实现说明：
+
+- 标题模式下，按行识别中文章节标题、英文 `Chapter` 标题或 Markdown heading 中的章节标题。
+- separator 模式下，只要文本包含 `---chapter---`，就按分隔符切段；兼容“每章前放分隔符”和“章节之间放分隔符”两种输入习惯。
+- 无标题 separator 段会生成稳定标题 `Chapter 1`、`Chapter 2`、`Chapter 3`。
+- 返回章节 ID 固定为 `chapter_001`、`chapter_002`、`chapter_003` 这种顺序格式。
+- `word_count` 当前按去掉空白后的 Unicode code point 数统计，适合中英文混合文本的稳定粗略字数。
+
+明确未做：
+
+- 未实现 `/api/chapters/analyze`。
+- 未实现 screenplay bible、multi-stage generate 或 bounded repair。
+- 未新增前端章节确认 UI。
+- 未修改 `examples/*` demo fixture。
+- 未将 `P3-PIPELINE-002`、`P4-*` 或 `P5-*` 标记为通过。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 4 个 test files、24 个 tests 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' typecheck`：通过，shared/server/web 全部通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过，`eslint .` 通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 2 passed。
+- evaluator 子代理 `019e9bd0-8a5b-7a30-ab2c-e05c21b089b9`：PASS。
+  - 使用 Chrome DevTools MCP 打开 `http://127.0.0.1:5173`。
+  - 完成页面 snapshot 和 full-page screenshot 视觉检查。
+  - 在浏览器上下文中通过 `fetch('/api/chapters/split')` 验证四类 fixture 和 422 错误态。
+  - 发现并促成本轮补齐 `---chapter---` 只放在章节之间的兼容边界；补充复核后仍 PASS。
+  - 复跑 server test：4 files / 24 tests passed。
+
+状态确认：
+
+- `P3-PIPELINE-001` 已具备 contract、QA 报告、真实 Express route 测试、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可以标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P2-LLM-001 OpenAI-compatible Single-stage Generation
 
 目标：实现 `feature_list.json` 中的 `P2-LLM-001`，让 OpenAI-compatible provider 可以完成单阶段小说转 YAML 生成，并立即返回现有 validator 的校验结果。

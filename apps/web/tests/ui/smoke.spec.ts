@@ -10,6 +10,6 @@ test('home page displays mock YAML through the backend', async ({ page }) => {
 
   const yamlOutput = page.getByTestId('yaml-output');
   for (const expectedText of ['schema_version: "1.0"', 'project:', 'source:', 'characters:', 'locations:', 'scenes:']) {
-    await expect(yamlOutput).toContainText(expectedText);
+    await expect(yamlOutput).toHaveValue(new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
