@@ -1,5 +1,82 @@
 # Progress Log
 
+## 2026-06-07 - OpenAI Responses Mode
+
+目标：把真实 LLM provider 从 Chat Completions 形状切换为 Responses 模式，解决 `/responses` endpoint 仍发送 `messages`、仍按 `choices[0].message.content` 解析的半切换状态。
+
+本轮修改：
+- `apps/server/src/provider/openai.ts`：请求 `${OPENAI_BASE_URL}/responses`，body 改为 `model`、`temperature`、`instructions`、`input`；响应优先解析 `output_text`，其次解析 `output[].content[].text`，并保留 `choices[0].message.content` 作为兼容兜底。
+- `apps/server/tests/screenplay-route.test.ts`：fake OpenAI-compatible server 改为接收 `/responses`，断言请求体包含 `instructions` 与 `input`，并返回 Responses `output[].content[].text`。
+- `apps/server/tests/pipeline-route.test.ts`：multi-stage fake provider 改为从 `instructions` / `input` 读取阶段 prompt，并返回 Responses 形状。
+- 同步 `README.md`、`docs/engineering.md`、`docs/contracts/P2-LLM-001.md`、`docs/qa/P2-LLM-001.md` 和 `docs/handoff.md` 的当前契约说明。
+
+当前语义：
+- `LLM_PROVIDER=openai` 仍由 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 控制。
+- 成功响应仍返回 `{ yaml, validation }`，YAML code fence 剥离和即时 validation 不变。
+- 上游 502/524 诊断增强保持不变；本轮没有调用真实外部 OpenAI-compatible API。
+- `feature_list.json` 不修改，因为这是 provider 接入模式迁移，不是新的 feature pass。
+
+验证记录：
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 32 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+
+## 2026-06-07 - OpenAI Upstream Error Diagnostics
+
+目标：定位真实后端接入时 `/api/screenplay/generate` 返回 `status_code=502, Upstream request failed` 的来源，并让 OpenAI-compatible provider 对上游 502/524 失败给出更清楚的错误信息。
+
+诊断结论：
+- `logs/server-dev.jsonl` 显示本地服务已经进入 `provider:"openai"`，不是继续走 mock。
+- 之前的真实失败记录为 `screenplay.generate.provider_failed`，上游 HTTP 状态是 `524`，body 是 Cloudflare HTML 超时页；本地 `/generate` 按既有契约包装为 HTTP `502 LLM_UNAVAILABLE`。
+- 最新 openai 启动记录后，`/api/chapters/split` 仍返回 `200`，说明章节预检和前端 YAML 流式展示不是这次 502 的来源。
+- 本轮没有调用真实外部 OpenAI-compatible 接口，避免使用真实 key 或产生费用；复现依赖本地 fake upstream。
+
+本轮修改：
+- 更新 `apps/server/src/provider/openai.ts`：上游非 2xx 时会解析 JSON 错误体里的 `status_code`、`message`、`error.message`、`code`；HTML 网关错误会提取 `<title>`，避免日志只显示大段 HTML。
+- 更新 `apps/server/tests/screenplay-route.test.ts`：新增本地 fake upstream 测试，覆盖 `{ "status_code": 502, "message": "Upstream request failed" }` 和 Cloudflare 风格 `524` HTML。
+- 不修改 `feature_list.json`；这不是新的 feature 验收项，也没有改变 `LLM_UNAVAILABLE` 的 HTTP 契约。
+
+当前语义：
+- 本地 API 仍保持 `502 LLM_UNAVAILABLE`，前端错误状态不需要改。
+- 用户现在会看到类似 `OpenAI-compatible request failed with HTTP 502 (upstream status_code=502): Upstream request failed`，或者 `OpenAI-compatible request failed with HTTP 524: HTML error page: 524: A timeout occurred`。
+- 如果 `OPENAI_BASE_URL` 指向的外部网关持续返回 502/524，需要检查该网关、模型名、key 权限、上游超时和代理服务健康；应用不会在 `LLM_PROVIDER=openai` 时自动切回 mock，以免掩盖真实接入失败。
+
+验证记录：
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 32 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+
+## 2026-06-07 - YAML Streaming Display
+
+目标：把前端生成后的 YAML 展示从一次性写入改为流式写入，让右侧 YAML 编辑器能逐块显示生成结果，同时保持现有后端 API、YAML textarea 事实源、debounce 校验、预览和导出语义不变。
+
+本轮创建或修改内容：
+
+- 新增 `apps/web/src/useYamlStream.ts`：封装 YAML 逐块写入逻辑；支持取消、最终落地 validation、`prefers-reduced-motion` 下直接写入。
+- 更新 `apps/web/src/App.tsx`：生成成功后调用 `streamYaml(result.yaml, result.validation)`；流式写入期间暂停 debounce validation，避免对半截 YAML 发起校验；用户手动编辑 YAML 时取消流式写入。
+- 更新 YAML 编辑器标题区：新增 `data-testid="yaml-render-state"` 和 `aria-live="polite"` 状态，显示 `正在流式写入 YAML` / `YAML 展示就绪` / `等待 YAML`。
+- 新增 `apps/web/tests/ui/yaml-streaming.spec.ts`：覆盖 textarea 中间态长度递增、`data-state` 从 `streaming` 回到 `idle`、流式期间不触发 `/api/yaml/validate`、最终 YAML 完整落地。
+- 更新 `apps/web/playwright.config.ts`：Playwright webServer 显式传入 `LLM_PROVIDER=mock`，避免本地根目录 `.env` 为 openai 时自动化 UI 测试误打真实 provider；手动 `pnpm dev` 仍按本地 `.env`。
+
+当前语义：
+
+- 后端 `/api/screenplay/generate` 仍返回完整 JSON；本轮只改变前端展示方式，不新增 SSE、流式 HTTP 或后端协议。
+- 流式期间导出保持禁用，预览保持暂停/待校验状态；完整 YAML 写完后恢复现有 validation -> preview -> export 链路。
+- YAML 编辑器仍是前端唯一 YAML 事实源；用户手动编辑时会取消未完成的流式写入，防止覆盖用户输入。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/yaml-streaming.spec.ts`：通过，Chromium 1 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Chromium 13 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- Chrome DevTools MCP 真实浏览器复核：通过。mock dev server 启动日志显示 `provider:"mock"`；点击生成后采样到 `data-state:"streaming"`，textarea 长度按 `210 -> 490 -> ... -> 3347` 递增，最终 `data-state:"idle"`、`YAML 展示就绪`、`校验通过`、`预览已更新`、导出可用。
+- 截图：`H:\tmp\story2script-yaml-streaming-fullpage.png`。
+- 布局检查：`horizontalOverflow:false`，`clippedCount:0`。
+- 手动启动的 dev server 已停止，`5173` / `8787` 无 Listen 进程。
+
+说明：
+
+- 本轮不是新的 `feature_list.json` 条目，不改变任何 `passes`。
+- 本轮没有调用真实外部 OpenAI API。
+
 ## 2026-06-07 - Chapter Count Limit Removal
 
 目标：按最新题意解除章节数限制。原题“至少处理三章以上的小说”表示系统至少要能处理 3 章以上长输入，不表示只能处理 3 章以上输入；当前行为应允许 1 章、2 章和更多章节进入生成路径。

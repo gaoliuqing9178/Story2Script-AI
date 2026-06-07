@@ -33,7 +33,8 @@ interface CapturedOpenAIRequest {
   body: {
     model?: unknown;
     temperature?: unknown;
-    messages?: Array<{ role?: unknown; content?: unknown }>;
+    instructions?: unknown;
+    input?: unknown;
   };
 }
 
@@ -114,17 +115,11 @@ describe('POST /api/screenplay/generate', () => {
       warnings: []
     });
     expect(request.method).toBe('POST');
-    expect(request.url).toBe('/chat/completions');
+    expect(request.url).toBe('/responses');
     expect(request.authorization).toBe('Bearer test-key');
     expect(request.body.model).toBe('test-model');
-    expect(request.body.messages?.[0]).toMatchObject({
-      role: 'system'
-    });
-    expect(request.body.messages?.[0]?.content).toContain('只返回 YAML 正文');
-    expect(request.body.messages?.[1]).toMatchObject({
-      role: 'user'
-    });
-    expect(request.body.messages?.[1]?.content).toContain('第一章 雨夜归来');
+    expect(request.body.instructions).toContain('只返回 YAML 正文');
+    expect(request.body.input).toContain('第一章 雨夜归来');
   });
 
   it('returns precise validation errors for OpenAI-compatible YAML output', async () => {
@@ -178,6 +173,38 @@ describe('POST /api/screenplay/generate', () => {
       }
     });
   });
+
+  it.each([
+    [
+      502,
+      { status_code: 502, message: 'Upstream request failed' },
+      'application/json',
+      'OpenAI-compatible request failed with HTTP 502 (upstream status_code=502): Upstream request failed'
+    ],
+    [
+      524,
+      '<!DOCTYPE html><html><head><title>524: A timeout occurred</title></head><body>Cloudflare</body></html>',
+      'text/html',
+      'OpenAI-compatible request failed with HTTP 524: HTML error page: 524: A timeout occurred'
+    ]
+  ])('reports OpenAI-compatible upstream HTTP %i errors clearly', async (upstreamStatus, responseBody, contentType, expectedMessage) => {
+    process.env.LLM_PROVIDER = 'openai';
+    process.env.OPENAI_API_KEY = 'test-key';
+    const openai = await startOpenAICompatibleErrorServer(upstreamStatus, responseBody, contentType);
+    process.env.OPENAI_BASE_URL = openai.baseUrl;
+
+    const { status, body } = await postGenerate({
+      novel_text: novelSample
+    });
+
+    expect(status).toBe(502);
+    expect(body).toEqual({
+      error: {
+        code: 'LLM_UNAVAILABLE',
+        message: expectedMessage
+      }
+    });
+  });
 });
 
 async function postGenerate(payload: unknown) {
@@ -226,11 +253,11 @@ async function startOpenAICompatibleServer(content: string) {
       res.setHeader('content-type', 'application/json');
       res.end(
         JSON.stringify({
-          choices: [
+          output: [
             {
-              message: {
-                content
-              }
+              type: 'message',
+              role: 'assistant',
+              content: [{ type: 'output_text', text: content }]
             }
           ]
         })
@@ -254,6 +281,29 @@ async function startOpenAICompatibleServer(content: string) {
 
       return capturedRequest;
     }
+  };
+}
+
+async function startOpenAICompatibleErrorServer(
+  statusCode: number,
+  responseBody: Record<string, unknown> | string,
+  contentType = 'application/json'
+) {
+  const server = createServer((_req, res) => {
+    res.statusCode = statusCode;
+    res.setHeader('content-type', contentType);
+    res.end(typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody));
+  });
+  servers.push(server);
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  const { port } = server.address() as AddressInfo;
+
+  return {
+    baseUrl: `http://127.0.0.1:${port}`
   };
 }
 

@@ -15,6 +15,7 @@ import {
   getGenerateErrorMessage,
   renderGenerationState
 } from './ui-states';
+import { useYamlStream } from './useYamlStream';
 
 export function App() {
   const isDemoRoute = isDemoRoutePath(window.location.pathname);
@@ -30,8 +31,21 @@ export function App() {
   const [validationError, setValidationError] = useState('');
   const [exportError, setExportError] = useState('');
   const generateInFlightRef = useRef(false);
+  const { cancelYamlStream, streamYaml, yamlRenderStatus } = useYamlStream({
+    setValidation,
+    setValidationError,
+    setValidationStatus,
+    setYaml
+  });
 
   useEffect(() => {
+    if (yamlRenderStatus === 'streaming') {
+      setValidation(null);
+      setValidationStatus('validating');
+      setValidationError('');
+      return;
+    }
+
     if (!yaml.trim()) {
       setValidation(null);
       setValidationStatus('idle');
@@ -67,7 +81,7 @@ export function App() {
       canceled = true;
       window.clearTimeout(timer);
     };
-  }, [yaml]);
+  }, [yaml, yamlRenderStatus]);
 
   async function handleGenerate() {
     if (generateInFlightRef.current) {
@@ -86,8 +100,7 @@ export function App() {
       phase = 'generating';
       setGenerationPhase(phase);
       const result = await generateMockScreenplay(novelText);
-      setYaml(result.yaml);
-      setValidation(result.validation);
+      await streamYaml(result.yaml, result.validation);
       setStatus('idle');
       setGenerationPhase('idle');
     } catch (cause) {
@@ -100,6 +113,7 @@ export function App() {
   }
 
   function loadDemoYaml(nextYaml: string) {
+    cancelYamlStream();
     setValidation(null);
     setValidationStatus('validating');
     setValidationError('');
@@ -240,6 +254,9 @@ export function App() {
                 <div>
                   <h2 className="text-base font-semibold">YAML 编辑器</h2>
                   <p className="mt-1 text-sm text-slate-600">当前剧本 YAML</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500" data-state={yamlRenderStatus} data-testid="yaml-render-state" role="status" aria-live="polite">
+                    {yamlRenderStatus === 'streaming' ? '正在流式写入 YAML' : hasYaml ? 'YAML 展示就绪' : '等待 YAML'}
+                  </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <span className="text-sm text-slate-500">{yaml.length} 字符</span>
@@ -280,6 +297,7 @@ export function App() {
                 id="yaml-editor"
                 name="yaml"
                 onChange={(event) => {
+                  cancelYamlStream();
                   setYaml(event.target.value);
                   setExportError('');
                 }}

@@ -1,5 +1,92 @@
 # Handoff
 
+## 2026-06-07 Update - OpenAI Responses Mode
+
+本轮按要求把真实 LLM provider 改为 Responses 模式。
+
+当前行为：
+- `OpenAIProvider` 现在请求 `${OPENAI_BASE_URL}/responses`，不再请求 `/chat/completions`。
+- 请求体使用 Responses 形状：`model`、`temperature`、`instructions` 和 `input`。其中 `instructions` 承载原 system prompt，`input` 承载原 user prompt。
+- 响应解析优先读取 `output_text`，其次读取 `output[].content[].text`；保留 `choices[0].message.content` 作为兼容兜底。
+- YAML code fence 剥离、即时 validation、`502 LLM_UNAVAILABLE` 错误契约和上游 502/524 诊断信息保持不变。
+
+本轮已修改：
+- `apps/server/src/provider/openai.ts`
+- `apps/server/tests/screenplay-route.test.ts`
+- `apps/server/tests/pipeline-route.test.ts`
+- `README.md`
+- `docs/engineering.md`
+- `docs/contracts/P2-LLM-001.md`
+- `docs/qa/P2-LLM-001.md`
+- `docs/handoff.md`
+- `progress.md`
+
+验证记录：
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 32 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+
+## 2026-06-07 Update - OpenAI Upstream Error Diagnostics
+
+本轮定位真实后端接入时报 `status_code=502, Upstream request failed` 的问题，并增强 OpenAI-compatible provider 的错误信息。
+
+当前结论：
+- 本地已经进入 `provider:"openai"`，不是 mock 回退。`logs/server-dev.jsonl` 中有 `server.started ... provider:"openai"` 证据。
+- `/api/chapters/split` 在 openai dev server 启动后仍返回 `200`，所以章节预检正常。
+- 已有真实失败日志显示 `screenplay.generate.provider_failed` 的上游状态是 HTTP `524`，body 是 Cloudflare HTML 超时页；本地 `/generate` 按契约返回 HTTP `502 LLM_UNAVAILABLE`。
+- 用户看到的 `status_code=502, Upstream request failed` 符合外部 OpenAI-compatible 网关返回 JSON 错误、Story2Script 再包装成本地 502 的形状。
+
+本轮已修改：
+- `apps/server/src/provider/openai.ts`：上游非 2xx 时解析 JSON 错误体里的 `status_code`、`message`、`error.message`、`code`；HTML 网关错误提取 `<title>`。
+- `apps/server/tests/screenplay-route.test.ts`：新增本地 fake upstream 覆盖 JSON `502 Upstream request failed` 和 Cloudflare 风格 `524` HTML。
+
+当前错误信息语义：
+- JSON 上游错误会显示：`OpenAI-compatible request failed with HTTP 502 (upstream status_code=502): Upstream request failed`。
+- HTML 网关错误会显示：`OpenAI-compatible request failed with HTTP 524: HTML error page: 524: A timeout occurred`。
+- 本地 HTTP 契约仍是 `502 LLM_UNAVAILABLE`，前端错误状态不需要改。
+
+排查建议：
+- 若 `OPENAI_BASE_URL=https://www.souimagery.fun/v1` 持续返回 502/524，优先查该外部网关、模型名、key 权限、上游超时、代理服务健康，而不是 YAML streaming 或 mock 配置。
+- 本轮没有真实调用外部 OpenAI-compatible API；所有新增验证都使用本地 fake upstream，避免使用真实 key 或产生费用。
+- 不修改 `feature_list.json`，因为这不是新的 feature 验收项，也没有改变已验收契约。
+
+验证记录：
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 32 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+
+## 2026-06-07 Update - YAML Streaming Display
+
+本轮把前端生成后的 YAML 展示改为流式写入；后端 `/api/screenplay/generate` 仍返回完整 JSON，没有新增 SSE、流式 HTTP 或后端协议。
+
+当前行为：
+
+- 点击 `用样例生成` 后，生成接口返回的完整 YAML 会由前端按块写入 `YAML 编辑器` textarea。
+- YAML 标题区新增 `data-testid="yaml-render-state"`，流式期间显示 `正在流式写入 YAML`，结束后显示 `YAML 展示就绪`。
+- 流式期间 `validationStatus` 保持 validating，导出禁用，预览不使用半截 YAML；写完后恢复原有 debounce validation、预览和导出链路。
+- 用户在 YAML 编辑器中手动输入时，会取消正在进行的流式写入，避免覆盖用户编辑。
+- `prefers-reduced-motion: reduce` 下不播放逐块动画，直接写入完整 YAML。
+
+本轮已修改：
+
+- `apps/web/src/useYamlStream.ts`
+- `apps/web/src/App.tsx`
+- `apps/web/tests/ui/yaml-streaming.spec.ts`
+- `apps/web/playwright.config.ts`
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/yaml-streaming.spec.ts`：通过，Chromium 1 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Chromium 13 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- Chrome DevTools MCP 真实浏览器复核：通过。mock dev server 日志显示 `provider:"mock"`；流式采样显示 textarea 长度从 `210` 逐步递增到 `3347`，状态从 `streaming` 回到 `idle`，最终页面 `校验通过`、`预览已更新`、导出可用。
+- 截图：`H:\tmp\story2script-yaml-streaming-fullpage.png`。
+- 布局检查：`horizontalOverflow:false`，`clippedCount:0`。
+- 手动启动的 dev server 已停止，`5173` / `8787` 无 Listen 进程。
+
+注意：
+
+- `apps/web/playwright.config.ts` 现在对 webServer 显式设置 `LLM_PROVIDER=mock`，用于保持 UI 自动化测试稳定；手动运行 `pnpm dev` 仍按本地 `.env`。
+- 本轮不是新的 `feature_list.json` 条目，不改变任何 `passes`。
+
 ## 2026-06-07 Update - Chapter Count Limit Removal
 
 本轮按最新题意解除章节数限制：原题“至少处理三章以上的小说”表示系统至少要能处理 3 章以上长输入，不表示只能处理 3 章以上输入。
@@ -485,7 +572,7 @@
 
 本轮已实现：
 
-- `apps/server/src/provider/openai.ts`：OpenAI-compatible `/chat/completions` provider，读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。
+- `apps/server/src/provider/openai.ts`：OpenAI-compatible `/responses` provider，读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。
 - `apps/server/src/routes/screenplay.ts`：openai 模式下接收小说文本，构造单阶段 novel-to-YAML prompt，provider 返回后立即执行现有 YAML validator。
 - `apps/web/src/api/screenplay.ts` 与 `apps/web/src/App.tsx`：已有小说输入文本会作为 `novel` 传给 generate API；mock 路径仍保持稳定。
 - `apps/server/tests/screenplay-route.test.ts`：真实 Express route + 本地 OpenAI-compatible fake server 覆盖成功、坏 YAML validation、缺小说文本、缺 key、mock 回归。
@@ -498,7 +585,7 @@
 - 默认 `LLM_PROVIDER=mock`：继续读取 `examples/screenplay-sample.yaml`，不需要小说文本，也会返回完整 `validation`。
 - `LLM_PROVIDER=openai`：请求体必须提供 `novel`、`novel_text` 或 `text`；缺失时返回 `400 BAD_REQUEST`。
 - openai provider 成功返回后，route 会剥离可能出现的 YAML code fence，并立即返回 `{ yaml, validation }`。
-- provider 配置缺失、请求失败、非 JSON 响应或缺少 message content 时返回 `502 LLM_UNAVAILABLE`。
+- provider 配置缺失、请求失败、非 JSON 响应或缺少 output text 时返回 `502 LLM_UNAVAILABLE`。
 
 验证记录：
 
@@ -565,7 +652,7 @@
 - `feature_list.json`：Phase 0-5 结构化进度表，当前 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001` 为 `passes:true`。
 - pnpm workspace：`packages/shared`、`apps/server`、`apps/web`。
 - MockProvider：默认读取 `examples/screenplay-sample.yaml`。
-- OpenAIProvider：读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，调用 OpenAI-compatible `/chat/completions`，从 `choices[0].message.content` 提取 YAML。
+- OpenAIProvider：读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，调用 OpenAI-compatible `/responses`，从 `output_text` 或 `output[].content[].text` 提取 YAML。
 - Playwright smoke：打开首页、点击 mock 生成按钮，并断言六个必需顶层 YAML 字段显示在页面上。
 - 结构化日志：server 输出 JSON 行，并提供 `scripts/read-dev-logs.js`。
 - `apps/server/src/validate/structural.ts`：AJV structural validation，使用 shared JSON Schema，并在结构通过后串联应用层校验。
