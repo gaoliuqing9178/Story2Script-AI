@@ -1,6 +1,6 @@
 import type { Screenplay } from '@story2script/shared';
 import { describe, expect, it } from 'vitest';
-import { buildScreenplayPreview, parseScreenplayYaml } from './screenplay';
+import { buildScreenplayMarkdown, buildScreenplayPreview, parseScreenplayYaml } from './screenplay';
 
 const screenplay: Screenplay = {
   schema_version: '1.0',
@@ -80,5 +80,18 @@ describe('screenplay preview rendering', () => {
 
     expect(parsed?.project.title).toBe('预览测试');
     expect(parsed?.scenes[0]?.id).toBe('scene_001');
+  });
+
+  it('formats screenplay scenes and beats as readable Markdown', () => {
+    const markdown = buildScreenplayMarkdown(screenplay);
+
+    expect(markdown).toContain('# 预览测试');
+    expect(markdown).toContain('## 第 1 场 雨夜归来');
+    expect(markdown).toContain('- 地点：旧火车站');
+    expect(markdown).toContain('雨水落在站台上。');
+    expect(markdown).toContain('**沈念**');
+    expect(markdown).toContain('> 旁白：这一刻，旧事重新翻涌。');
+    expect(markdown).toContain('**切至老街。**');
+    expect(markdown).toContain('_（内心）林舟：我不能再逃了。_');
   });
 });

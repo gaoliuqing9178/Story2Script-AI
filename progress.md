@@ -1,5 +1,72 @@
 # Progress Log
 
+## 2026-06-07 - P4-EXPORT-003 YAML and Markdown Export
+
+目标：实现 `feature_list.json` 中的 `P4-EXPORT-003`，让用户可以把当前剧本导出为 YAML 和 Markdown。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/web/src/render/screenplay.ts`：新增 `buildScreenplayMarkdown(screenplay)`，复用 `buildScreenplayPreview` 的场景和 beat 映射语义生成 Markdown。
+- 更新 `apps/web/src/render/screenplay.test.ts`：覆盖 Markdown 输出中的项目标题、场景标题、地点、动作、对白、旁白、转场和内心独白。
+- 更新 `apps/web/src/App.tsx`：在 `YAML 编辑器` 标题区新增 `导出 YAML` 和 `导出 Markdown` 按钮；仅在当前 YAML 非空、校验状态空闲且 `validation.valid === true` 时启用导出。
+- 新增 `apps/web/tests/ui/p4-export.spec.ts`：真实浏览器覆盖空态按钮禁用、生成后按钮启用、`.yaml` 下载可解析、`.md` 下载包含可读场景和 beat 文本。
+- 新增 `docs/contracts/P4-EXPORT-003.md`。
+- 新增 `docs/qa/P4-EXPORT-003.md`。
+- 将 `feature_list.json` 中 `P4-EXPORT-003.passes` 改为 `true`。
+
+关键实现说明：
+
+- YAML 导出直接使用当前 `YAML 编辑器` textarea value，保持前端 YAML 的唯一事实源。
+- Markdown 导出先用 `parseScreenplayYaml(yaml)` 解析当前 YAML，再用 `buildScreenplayMarkdown` 生成可读剧本稿。
+- 导出文件名优先使用 `project.title`，并清理 Windows 文件名不安全字符；无法得到标题时回退到 `story2script-screenplay`。
+- 本轮没有新增后端 API，也没有修改后端 validator。
+- 未通过校验、校验中或校验请求失败时，两个导出按钮保持禁用，避免导出未确认内容。
+
+明确未做：
+
+- 未实现 PDF、DOCX、Final Draft、字幕或压缩包导出。
+- 未实现 `P5-POLISH-002` 的完整 loading、empty、error 全路径打磨。
+- 未引入 Monaco Editor 或 CodeMirror。
+- 未修改 `examples/*` demo fixture。
+- 未调整真实 LLM provider 或 pipeline 语义。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p4-export.spec.ts`：通过，Chromium 1 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator 使用 Chrome DevTools MCP 做真实交互复核：
+  - 打开 `http://127.0.0.1:5173/`。
+  - 初始状态两个导出按钮 disabled。
+  - 点击“用样例生成”后，校验通过，两个导出按钮 enabled。
+  - 真实点击两个导出按钮后，浏览器下载 `雨夜归来.yaml` 和 `雨夜归来.md`。
+  - 读取下载文件，YAML 顶层键为 `schema_version`、`project`、`source`、`characters`、`locations`、`scenes`；Markdown 包含项目标题、第一场标题、动作、对白、旁白、转场、内心独白。
+  - full-page screenshot：`H:\tmp\P4-EXPORT-003-fullpage.png`。
+  - 布局指标：`scrollWidth === clientWidth`，无横向溢出。
+- evaluator 子代理 `019ea056-e0a2-79b3-8bff-872c7f35a6bc`：PASS。
+  - 使用 Chrome DevTools MCP 完成真实页面交互、下载文件核对和 full-page screenshot。
+  - 下载证据：`C:\Users\lx8nb\Downloads\雨夜归来 (1).yaml`，`C:\Users\lx8nb\Downloads\雨夜归来 (1).md`。
+  - YAML 成功解析，六个顶层键全部存在，`sceneCount === 3`。
+  - Markdown 内容核对全部通过。
+  - 视觉检查 PASS：页面非空白，无明显错位、遮挡、文字溢出、按钮截断或横向滚动。
+  - evaluator 停止本轮 dev server 后确认 `5173/8787` 端口释放。
+
+状态确认：
+
+- `P4-EXPORT-003` 已具备 contract、QA 报告、Vitest、Playwright UI、Chrome DevTools MCP evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003` 为 `passes:true`，其余 feature 仍保持 `passes:false`。
+
 ## 2026-06-06 - P4-PREVIEW-002 Screenplay Preview
 
 目标：实现 `feature_list.json` 中的 `P4-PREVIEW-002`，让前端复用当前 YAML editor 的事实源，在 validation pass 时渲染 action、dialogue、narration、transition、inner_voice 五类 beat，并在 validation fail 时明确暂停预览。

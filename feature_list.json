@@ -151,7 +151,7 @@
         "Export .md and verify it contains readable scene and beat text.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P5-POLISH-001",

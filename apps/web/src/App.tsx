@@ -2,6 +2,7 @@ import type { ValidationResult } from '@story2script/shared';
 import { useEffect, useState } from 'react';
 import { generateMockScreenplay, validateYaml } from './api/screenplay';
 import { ScreenplayPreview } from './components/ScreenplayPreview';
+import { buildScreenplayMarkdown, parseScreenplayYaml } from './render/screenplay';
 
 const sampleText = `# 第一章 雨夜归来
 
@@ -23,6 +24,7 @@ export function App() {
   const [validationStatus, setValidationStatus] = useState<'idle' | 'validating' | 'error'>('idle');
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     if (!yaml.trim()) {
@@ -65,6 +67,7 @@ export function App() {
   async function handleGenerate() {
     setStatus('loading');
     setError('');
+    setExportError('');
 
     try {
       const result = await generateMockScreenplay(novelText);
@@ -81,6 +84,43 @@ export function App() {
   const warnings = validation?.warnings ?? [];
   const hasYaml = yaml.trim().length > 0;
   const showValidationDetails = validationStatus === 'idle';
+  const canExport = hasYaml && validationStatus === 'idle' && validation?.valid === true;
+
+  function handleExportYaml() {
+    if (!canExport) {
+      setExportError('请先生成并通过校验后再导出。');
+      return;
+    }
+
+    const screenplay = parseScreenplayYaml(yaml);
+    downloadTextFile({
+      content: ensureTrailingNewline(yaml),
+      filename: buildExportFileName(screenplay?.project.title, 'yaml'),
+      mimeType: 'application/x-yaml;charset=utf-8'
+    });
+    setExportError('');
+  }
+
+  function handleExportMarkdown() {
+    if (!canExport) {
+      setExportError('请先生成并通过校验后再导出。');
+      return;
+    }
+
+    const screenplay = parseScreenplayYaml(yaml);
+
+    if (!screenplay) {
+      setExportError('当前 YAML 已校验通过，但前端无法解析为 Markdown。');
+      return;
+    }
+
+    downloadTextFile({
+      content: buildScreenplayMarkdown(screenplay),
+      filename: buildExportFileName(screenplay.project.title, 'md'),
+      mimeType: 'text/markdown;charset=utf-8'
+    });
+    setExportError('');
+  }
 
   function renderValidationState() {
     if (!hasYaml) {
@@ -111,7 +151,7 @@ export function App() {
             <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Story2Script AI</h1>
           </div>
           <p className="max-w-2xl text-sm leading-6 text-slate-600">
-            小说转结构化剧本的工作台骨架。当前只验证前后端通信和 mock YAML 显示，不代表任何功能项通过。
+            小说转结构化剧本的工作台骨架。当前支持 mock 生成、YAML 校验、剧本预览和导出。
           </p>
         </header>
 
@@ -147,16 +187,46 @@ export function App() {
                   <h2 className="text-base font-semibold">YAML 编辑器</h2>
                   <p className="mt-1 text-sm text-slate-600">当前剧本 YAML</p>
                 </div>
-                <span className="shrink-0 text-sm text-slate-500">{yaml.length} 字符</span>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span className="text-sm text-slate-500">{yaml.length} 字符</span>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      className="cursor-pointer rounded border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink transition-colors duration-200 hover:border-accent hover:text-accent focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-accent disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                      data-testid="export-yaml-button"
+                      disabled={!canExport}
+                      onClick={handleExportYaml}
+                      title={canExport ? '下载当前 YAML' : '生成并通过校验后可导出'}
+                      type="button"
+                    >
+                      导出 YAML
+                    </button>
+                    <button
+                      className="cursor-pointer rounded border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink transition-colors duration-200 hover:border-accent hover:text-accent focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-accent disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                      data-testid="export-markdown-button"
+                      disabled={!canExport}
+                      onClick={handleExportMarkdown}
+                      title={canExport ? '下载 Markdown 剧本稿' : '生成并通过校验后可导出'}
+                      type="button"
+                    >
+                      导出 Markdown
+                    </button>
+                  </div>
+                </div>
               </div>
               {error ? (
                 <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+              ) : null}
+              {exportError ? (
+                <div className="mx-4 mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{exportError}</div>
               ) : null}
               <textarea
                 aria-label="YAML 编辑器"
                 className="min-h-[340px] flex-1 resize-none border-0 p-4 font-mono text-sm leading-6 text-slate-800 outline-none focus:bg-slate-50"
                 data-testid="yaml-output"
-                onChange={(event) => setYaml(event.target.value)}
+                onChange={(event) => {
+                  setYaml(event.target.value);
+                  setExportError('');
+                }}
                 placeholder="点击“用样例生成”后，这里会显示后端 mock YAML。"
                 spellCheck={false}
                 value={yaml}
@@ -207,4 +277,43 @@ export function App() {
       </div>
     </main>
   );
+}
+
+interface DownloadTextFileInput {
+  content: string;
+  filename: string;
+  mimeType: string;
+}
+
+function downloadTextFile({ content, filename, mimeType }: DownloadTextFileInput) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+}
+
+function buildExportFileName(title: string | undefined, extension: 'yaml' | 'md') {
+  const safeTitle = [...(title ?? '').trim()]
+    .map((character) => (isUnsafeFileNameCharacter(character) ? '-' : character))
+    .join('')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
+  return `${safeTitle || 'story2script-screenplay'}.${extension}`;
+}
+
+function isUnsafeFileNameCharacter(character: string) {
+  return character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character);
+}
+
+function ensureTrailingNewline(value: string) {
+  return value.endsWith('\n') ? value : `${value}\n`;
 }
