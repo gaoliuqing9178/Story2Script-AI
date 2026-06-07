@@ -1,9 +1,17 @@
 import type { ValidationResult } from '@story2script/shared';
-import { useEffect, useState } from 'react';
-import { ChapterSplitError, splitNovelChapters } from './api/chapters';
+import { useEffect, useRef, useState } from 'react';
+import { splitNovelChapters } from './api/chapters';
 import { generateMockScreenplay, validateYaml } from './api/screenplay';
 import { ScreenplayPreview } from './components/ScreenplayPreview';
+import { buildExportFileName, downloadTextFile, ensureTrailingNewline } from './download';
 import { buildScreenplayMarkdown, parseScreenplayYaml } from './render/screenplay';
+import {
+  formatValidationRequestError,
+  getExportStateText,
+  getGenerateButtonLabel,
+  getGenerateErrorMessage,
+  renderGenerationState
+} from './ui-states';
 
 const sampleText = `# 第一章 雨夜归来
 
@@ -22,10 +30,12 @@ export function App() {
   const [yaml, setYaml] = useState('');
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [generationPhase, setGenerationPhase] = useState<'idle' | 'checking' | 'generating'>('idle');
   const [validationStatus, setValidationStatus] = useState<'idle' | 'validating' | 'error'>('idle');
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
   const [exportError, setExportError] = useState('');
+  const generateInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!yaml.trim()) {
@@ -55,7 +65,7 @@ export function App() {
           }
 
           setValidationStatus('error');
-          setValidationError(cause instanceof Error ? cause.message : 'YAML 校验请求失败');
+          setValidationError(formatValidationRequestError(cause));
         });
     }, 350);
 
@@ -66,19 +76,32 @@ export function App() {
   }, [yaml]);
 
   async function handleGenerate() {
+    if (generateInFlightRef.current) {
+      return;
+    }
+
+    let phase: 'checking' | 'generating' = 'checking';
+    generateInFlightRef.current = true;
     setStatus('loading');
+    setGenerationPhase(phase);
     setError('');
     setExportError('');
 
     try {
       await splitNovelChapters(novelText);
+      phase = 'generating';
+      setGenerationPhase(phase);
       const result = await generateMockScreenplay(novelText);
       setYaml(result.yaml);
       setValidation(result.validation);
       setStatus('idle');
+      setGenerationPhase('idle');
     } catch (cause) {
       setStatus('error');
-      setError(getGenerateErrorMessage(cause));
+      setGenerationPhase('idle');
+      setError(getGenerateErrorMessage(cause, phase));
+    } finally {
+      generateInFlightRef.current = false;
     }
   }
 
@@ -87,6 +110,12 @@ export function App() {
   const hasYaml = yaml.trim().length > 0;
   const showValidationDetails = validationStatus === 'idle';
   const canExport = hasYaml && validationStatus === 'idle' && validation?.valid === true;
+  const exportStateText = getExportStateText({
+    errors,
+    hasYaml,
+    validation,
+    validationStatus
+  });
 
   function handleExportYaml() {
     if (!canExport) {
@@ -162,6 +191,9 @@ export function App() {
             <div className="border-b border-line px-4 py-3">
               <h2 className="text-base font-semibold">小说输入</h2>
               <p className="mt-1 text-sm text-slate-600">默认 mock provider，生成结果会进入右侧 YAML 工作区。</p>
+              <div className="mt-3" data-testid="generation-state" role="status" aria-live="polite">
+                {renderGenerationState({ generationPhase, hasYaml, status })}
+              </div>
             </div>
             <textarea
               className="min-h-[280px] flex-1 resize-none border-0 p-4 text-sm leading-6 text-slate-800 outline-none"
@@ -171,6 +203,8 @@ export function App() {
                 setError('');
               }}
               aria-label="小说输入"
+              id="novel-input"
+              name="novel"
             />
             {error ? (
               <div className="mx-4 mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900" data-testid="generation-error">
@@ -185,7 +219,7 @@ export function App() {
                 onClick={handleGenerate}
                 disabled={status === 'loading'}
               >
-                {status === 'loading' ? '生成中...' : '用样例生成'}
+                {getGenerateButtonLabel(status, generationPhase)}
               </button>
             </div>
           </div>
@@ -221,6 +255,9 @@ export function App() {
                       导出 Markdown
                     </button>
                   </div>
+                  <p className="max-w-xs text-right text-xs leading-5 text-slate-500" data-testid="export-state">
+                    {exportStateText}
+                  </p>
                 </div>
               </div>
               {exportError ? (
@@ -230,6 +267,8 @@ export function App() {
                 aria-label="YAML 编辑器"
                 className="min-h-[340px] flex-1 resize-none border-0 p-4 font-mono text-sm leading-6 text-slate-800 outline-none focus:bg-slate-50"
                 data-testid="yaml-output"
+                id="yaml-editor"
+                name="yaml"
                 onChange={(event) => {
                   setYaml(event.target.value);
                   setExportError('');
@@ -248,7 +287,9 @@ export function App() {
               <div className="space-y-3 px-4 py-3 text-sm">
                 {!hasYaml ? <p className="text-slate-500">暂无 YAML。</p> : null}
                 {validationStatus === 'error' ? (
-                  <p className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{validationError}</p>
+                  <p className="rounded border border-red-200 bg-red-50 p-3 text-red-700" data-testid="validation-request-error">
+                    {validationError}
+                  </p>
                 ) : null}
                 {showValidationDetails && hasYaml && validation?.valid ? (
                   <p className="rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
@@ -284,55 +325,4 @@ export function App() {
       </div>
     </main>
   );
-}
-
-interface DownloadTextFileInput {
-  content: string;
-  filename: string;
-  mimeType: string;
-}
-
-function downloadTextFile({ content, filename, mimeType }: DownloadTextFileInput) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = window.URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
-}
-
-function buildExportFileName(title: string | undefined, extension: 'yaml' | 'md') {
-  const safeTitle = [...(title ?? '').trim()]
-    .map((character) => (isUnsafeFileNameCharacter(character) ? '-' : character))
-    .join('')
-    .replace(/\s+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-
-  return `${safeTitle || 'story2script-screenplay'}.${extension}`;
-}
-
-function isUnsafeFileNameCharacter(character: string) {
-  return character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character);
-}
-
-function getGenerateErrorMessage(cause: unknown) {
-  if (cause instanceof ChapterSplitError && cause.code === 'TOO_FEW_CHAPTERS') {
-    return `还差一点：${cause.message}。请再补充章节后生成剧本。`;
-  }
-
-  if (cause instanceof ChapterSplitError && cause.code === 'BAD_REQUEST') {
-    return '请先输入小说正文，并包含至少 3 个章节。';
-  }
-
-  return cause instanceof Error ? cause.message : '生成请求失败';
-}
-
-function ensureTrailingNewline(value: string) {
-  return value.endsWith('\n') ? value : `${value}\n`;
 }

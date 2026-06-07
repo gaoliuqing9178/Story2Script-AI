@@ -1,5 +1,69 @@
 # Handoff
 
+## 2026-06-07 Update - P5-POLISH-002
+
+`P5-POLISH-002` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+
+本轮已实现：
+
+- `apps/web/src/App.tsx`：新增 generation 子阶段状态、生成请求防重入、generation 状态提示、export 状态提示、validation request error 稳定测试标识；两个 textarea 补 `id/name`。
+- `apps/web/src/ui-states.tsx`：集中维护 generation、validation、export 状态文案，以及 generation / validation 请求错误的阶段路径格式化。
+- `apps/web/src/download.ts`：拆出下载文件、导出文件名和结尾换行 helper，保持 `App.tsx` 行数和职责收敛。
+- `apps/web/tests/ui/p5-polish.spec.ts`：扩展到 5 个 Playwright 用例，覆盖少于 3 章拦截、慢生成 loading、防重复提交、生成 500、导出空态、校验中导出暂停、校验 500、业务校验失败导出暂停。
+- `docs/contracts/P5-POLISH-002.md`：本轮 contract。
+- `docs/qa/P5-POLISH-002.md`：Chrome DevTools MCP generator/evaluator QA 报告。
+
+当前状态语义：
+
+- generation 初始空态：`等待生成：会先检查章节数量，再调用剧本生成接口。`
+- generation 章节预检中：`正在检查章节数量，确认至少 3 个章节后再进入生成。`
+- generation 生成中：`正在生成剧本 YAML，请稍等，按钮已暂时锁定。`
+- generation 完成：`最近一次生成已完成，YAML 已进入右侧工作区。`
+- generation 失败：`生成没有完成，请看下方具体阶段提示。`
+- `/api/screenplay/generate` 非 2xx：显示 `剧本生成阶段失败（/api/screenplay/generate）：<message>`。
+- `/api/yaml/validate` 非 2xx：显示 `校验阶段失败（/api/yaml/validate）：<message>`。
+- export 空态：`暂无可导出的 YAML。生成并通过校验后可导出 YAML 或 Markdown。`
+- export 校验中：`校验中，导出暂不可用。`
+- export 校验请求失败：`校验请求失败，导出已暂停。`
+- export 业务校验失败：`当前 YAML 未通过校验，导出已暂停（N 个错误）。`
+- export 可用：`可导出 YAML 或 Markdown。`
+
+本轮明确没有修改：
+
+- 后端 API、provider、pipeline、validator、YAML schema。
+- `examples/*` demo fixture。
+- P5-POLISH-001 的少于 3 章拦截语义。
+- P5-DEMO-003 的 demo 资产、README 或 demo route。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 10 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator Chrome DevTools MCP 复核：PASS。
+  - 初始空态、慢生成、正常生成、业务校验失败、校验请求失败、生成请求失败均已覆盖。
+  - full-page screenshot：`H:\tmp\P5-POLISH-002-fullpage.png`。
+  - 布局指标：`scrollWidth === innerWidth`，无横向溢出。
+- evaluator 子代理 `019ea0b9-cb51-7ac0-b6f4-878ba2fe580b`：PASS。
+  - 使用 Chrome DevTools MCP 完成真实页面交互、延迟/错误模拟、full-page screenshot 和视觉检查。
+  - Screenshot：`H:\tmp\P5-POLISH-002-evaluator-fullpage.png`。
+  - 慢生成双击后只有 1 次 `/api/screenplay/generate`。
+  - evaluator 补跑 `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，5 passed。
+  - evaluator 停止本轮 dev server 后确认 `5173/8787` 均无 `Listen`。
+
+当前状态：
+
+- `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001`、`P5-POLISH-002` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+- `P5-DEMO-003` 仍为 `passes:false`。
+
+下一轮建议：
+
+- 优先做 `P5-DEMO-003`：补稳定 demo 资产、broken YAML fixture、README 和 3 分钟 demo route。
+- 不要回退 `P5-POLISH-002.passes`，除非发现上述真实验证路径失效。
+
 ## 2026-06-07 Update - P5-POLISH-001
 
 `P5-POLISH-001` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。

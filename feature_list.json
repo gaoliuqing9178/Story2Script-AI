@@ -179,7 +179,7 @@
         "Force server error and verify the UI shows a specific error path or phase.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "P5-DEMO-003",

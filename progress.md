@@ -1,5 +1,79 @@
 # Progress Log
 
+## 2026-06-07 - P5-POLISH-002 Loading Empty Error States
+
+目标：实现 `feature_list.json` 中的 `P5-POLISH-002`，统一 generation、validation、export 路径的 loading、empty、error 状态，让用户能看清当前阶段、错误来源和导出可用性。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 更新 `apps/web/src/App.tsx`：新增 generation 子阶段状态、生成请求防重入、generation 状态提示、export 状态提示、validation request error 稳定测试标识；为两个 textarea 补 `id/name`。
+- 新增 `apps/web/src/ui-states.tsx`：集中 generation / validation / export 状态文案和错误阶段格式化。
+- 新增 `apps/web/src/download.ts`：拆出导出文件名、Blob 下载和结尾换行 helper，避免 `App.tsx` 继续膨胀。
+- 扩展 `apps/web/tests/ui/p5-polish.spec.ts`：覆盖慢生成 loading、防重复提交、生成 500、导出空态、校验中导出暂停、校验 500、业务校验失败导出暂停。
+- 新增 `docs/contracts/P5-POLISH-002.md`。
+- 新增 `docs/qa/P5-POLISH-002.md`。
+- 将 `feature_list.json` 中 `P5-POLISH-002.passes` 改为 `true`。
+
+关键实现说明：
+
+- `handleGenerate` 使用 `generateInFlightRef` 防止同一轮生成重复提交；loading 期间按钮 disabled。
+- generation 状态区显示：
+  - 初始：`等待生成：会先检查章节数量，再调用剧本生成接口。`
+  - 章节预检：`正在检查章节数量，确认至少 3 个章节后再进入生成。`
+  - 生成 YAML：`正在生成剧本 YAML，请稍等，按钮已暂时锁定。`
+  - 完成：`最近一次生成已完成，YAML 已进入右侧工作区。`
+  - 失败：`生成没有完成，请看下方具体阶段提示。`
+- generation server error 会显示具体 API 路径，例如 `剧本生成阶段失败（/api/screenplay/generate）：mock provider timeout`。
+- validation request error 会显示具体 API 路径，例如 `校验阶段失败（/api/yaml/validate）：validator service unavailable`。
+- export 状态区区分空态、校验中、校验请求失败、业务校验失败和可导出。
+- 空 YAML、校验中、校验请求失败、业务校验失败时，YAML / Markdown 导出按钮均 disabled。
+- 本轮没有新增后端 API，没有修改 provider、pipeline、validator、schema 或 `examples/*`。
+
+明确未做：
+
+- 未实现 `P5-DEMO-003` 的 demo 资产、README 或 3 分钟 demo route。
+- 未新增 PDF、DOCX、Final Draft 等导出格式。
+- 未实现章节确认 UI、手动重切章或章节编辑。
+- 未改变 `P5-POLISH-001` 的少于 3 章拦截语义。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，Chromium 5 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 10 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator Chrome DevTools MCP 复核：
+  - 初始空态：YAML `0` 字符，校验 `未校验`，导出按钮 disabled，导出区显示暂无可导出的 YAML。
+  - 慢生成：浏览器上下文延迟 `/api/screenplay/generate` 后，页面显示 `正在生成剧本 YAML，请稍等，按钮已暂时锁定。`，生成按钮 `生成中...` 且 disabled。
+  - 正常生成：YAML 字符数 `3347`，校验通过，预览更新，导出启用。
+  - 业务校验失败：删除 `project.title` 后显示 `project.title` / `必填字段缺失`，预览暂停，导出暂停。
+  - 校验请求失败：模拟 `/api/yaml/validate` 500，页面显示接口路径，预览和导出暂停。
+  - 生成请求失败：模拟 `/api/screenplay/generate` 500，页面显示接口路径，YAML 保持空态，导出 disabled。
+  - full-page screenshot：`H:\tmp\P5-POLISH-002-fullpage.png`。
+  - 布局指标：`scrollWidth === innerWidth`，无横向溢出。
+- evaluator 子代理 `019ea0b9-cb51-7ac0-b6f4-878ba2fe580b`：PASS。
+  - 使用 Chrome DevTools MCP 完成真实页面交互、延迟/错误模拟、full-page screenshot 和视觉检查。
+  - Screenshot：`H:\tmp\P5-POLISH-002-evaluator-fullpage.png`。
+  - 慢生成双击后只有 1 次 `/api/screenplay/generate`。
+  - `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-polish.spec.ts`：通过，5 passed。
+  - evaluator 停止本轮 dev server 后确认 `5173/8787` 均无 `Listen`。
+
+状态确认：
+
+- `P5-POLISH-002` 已具备 contract、QA 报告、Playwright UI 覆盖、Chrome DevTools MCP generator/evaluator 证据、`pnpm verify` 和 `pnpm test:ui` 证据，可标记 `passes:true`。
+- 当前 `feature_list.json` 中 `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001`、`P5-POLISH-002` 为 `passes:true`。
+- `P5-DEMO-003` 仍保持 `passes:false`。
+
 ## 2026-06-07 - P5-POLISH-001 Input Chapter Count Guard
 
 目标：实现 `feature_list.json` 中的 `P5-POLISH-001`，让少于 3 章的小说输入在前端生成前被友好拦截，并明确告诉用户至少需要 3 个章节、当前识别到几个章节。
