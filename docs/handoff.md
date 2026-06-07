@@ -1,5 +1,61 @@
 # Handoff
 
+## 2026-06-07 Update - P5-DEMO-003
+
+`P5-DEMO-003` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+
+本轮已实现：
+
+- `examples/screenplay-broken.yaml`：新增 demo 专用 broken YAML fixture，语法可解析，但故意缺失 `project.title`。
+- `apps/web/src/demo-assets.ts`：集中导入 demo 小说、稳定合法 YAML 和坏 YAML。
+- `apps/web/src/App.tsx`：识别 `/demo` route；`/demo` 初始预载稳定合法 YAML；保留首页 `/` 的 mock 生成路径。
+- `apps/web/src/components/DemoRoutePanel.tsx`：新增 `3 分钟演示路线` 面板，提供 `加载合法 YAML`、`加载坏 YAML`、`还原样例小说`。
+- `apps/web/src/components/ValidationPanel.tsx`：拆出校验结果面板，避免 `App.tsx` 超过 lint `max-lines`。
+- `apps/web/tests/ui/p5-demo.spec.ts`：覆盖 `/demo` 初始合法状态、坏 YAML 校验错误和恢复合法状态。
+- `apps/server/tests/yaml-validate-route.test.ts`：新增 broken fixture 校验断言，确认错误路径为 `project.title`。
+- `README.md`：补充 demo 地址、fixture 说明和 3 分钟演示节奏。
+- `docs/contracts/P5-DEMO-003.md`：本轮 contract。
+- `docs/qa/P5-DEMO-003.md`：Chrome DevTools MCP generator/evaluator QA 报告。
+
+当前 `/demo` 语义：
+
+- 打开 `http://127.0.0.1:5173/demo` 后，页面顶部显示 `3 分钟演示路线`。
+- 左侧小说输入预载 `examples/novel-sample.md`。
+- 右侧 YAML 编辑器预载 `examples/screenplay-sample.yaml`，并通过现有 `/api/yaml/validate` 校验。
+- 初始合法状态：`校验通过`、`预览已更新`、`导出 YAML` / `导出 Markdown` 可用。
+- 点击 `加载坏 YAML`：加载 `examples/screenplay-broken.yaml`，校验面板显示 `project.title` / `必填字段缺失`，预览暂停，导出禁用。
+- 点击 `加载合法 YAML`：恢复合法 fixture，校验、预览和导出恢复可用。
+- 本轮没有新增后端 API，没有改变 provider、pipeline、validator、schema 或导出语义。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 28 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' build`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-demo.spec.ts`：通过，Chromium 2 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 12 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator Chrome DevTools MCP 复核：PASS。
+  - Network 显示三次 `POST /api/yaml/validate [200]`，分别对应初始合法、坏 YAML、恢复合法。
+  - full-page screenshot：`H:\tmp\P5-DEMO-003-fullpage.png`。
+  - 布局指标：`horizontalOverflow:false`、`clippedCount:0`。
+- evaluator 子代理 `019ea0d9-a041-7d50-ba8d-0d9af663168e`：PASS。
+  - Screenshot：`H:\tmp\P5-DEMO-003-evaluator-fullpage.png`。
+  - 确认坏 YAML 返回 `project.title` / `必填字段缺失`。
+  - 视觉检查通过，非阻断项仅有 favicon 404。
+
+当前状态：
+
+- `P0-E2E-001`、`P0-INFRA-002`、`P1-VALIDATE-001`、`P1-VALIDATE-002`、`P2-LLM-001`、`P3-PIPELINE-001`、`P3-PIPELINE-002`、`P4-EDITOR-001`、`P4-PREVIEW-002`、`P4-EXPORT-003`、`P5-POLISH-001`、`P5-POLISH-002`、`P5-DEMO-003` 均已正式验收，并在 `feature_list.json` 标记为 `passes:true`。
+- MVP feature list 当前已全部通过。
+
+后续建议：
+
+- 如果继续打磨，可优先补 demo 视频脚本/录屏材料，但这已不属于 `P5-DEMO-003` 的代码验收阻断项。
+- 不要回退 `P5-DEMO-003.passes`，除非发现上述真实验证路径失效。
+
 ## 2026-06-07 Update - P5-POLISH-002
 
 `P5-POLISH-002` 已正式验收，并在 `feature_list.json` 标记为 `passes:true`。

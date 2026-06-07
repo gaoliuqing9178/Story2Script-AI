@@ -1,5 +1,70 @@
 # Progress Log
 
+## 2026-06-07 - P5-DEMO-003 Demo Assets and Route
+
+目标：实现 `feature_list.json` 中的 `P5-DEMO-003`，补齐稳定合法 YAML、故意损坏 YAML、README 和 3 分钟 demo route。
+
+已读取事实来源：
+
+- `docs/design.md`
+- `docs/yaml-schema.md`
+- `docs/engineering.md`
+- `feature_list.json`
+- `docs/handoff.md`
+
+本轮创建或修改内容：
+
+- 新增 `examples/screenplay-broken.yaml`：故意缺失 `project.title`，用于 demo 中展示精确校验错误。
+- 新增 `apps/web/src/demo-assets.ts`：集中导入 `examples/novel-sample.md`、`examples/screenplay-sample.yaml` 和 `examples/screenplay-broken.yaml`。
+- 更新 `apps/web/src/App.tsx`：识别 `/demo` route，预载合法 YAML，并接入合法/坏 YAML 切换。
+- 新增 `apps/web/src/components/DemoRoutePanel.tsx`：展示 3 分钟演示路线和 demo 操作按钮。
+- 新增 `apps/web/src/components/ValidationPanel.tsx`：拆出校验结果面板，避免 `App.tsx` 超过 lint 行数限制。
+- 新增 `apps/web/tests/ui/p5-demo.spec.ts`：覆盖 `/demo` 预载合法 YAML、切坏 YAML、恢复合法 YAML。
+- 更新 `apps/server/tests/yaml-validate-route.test.ts`：确认稳定 fixture 合法，broken fixture 返回 `project.title` / `必填字段缺失`。
+- 更新 `README.md`：写清 `/demo` 入口、demo fixture 和 3 分钟演示节奏。
+- 新增 `docs/contracts/P5-DEMO-003.md`。
+- 新增 `docs/qa/P5-DEMO-003.md`。
+- 将 `feature_list.json` 中 `P5-DEMO-003.passes` 改为 `true`。
+
+关键实现说明：
+
+- `/demo` 初始加载 `examples/screenplay-sample.yaml`，随后仍通过现有 `/api/yaml/validate` 得到真实校验结果。
+- `加载坏 YAML` 加载 `examples/screenplay-broken.yaml`，不是前端假造错误；校验面板显示 `project.title` / `必填字段缺失`。
+- `加载合法 YAML` 可恢复校验通过、预览更新和导出可用。
+- 首页 `/` 保留原有 mock 生成路径；本轮不新增后端 API，不改变 provider、pipeline、validator 或 schema 语义。
+
+明确未做：
+
+- 未录制 demo 视频。
+- 未新增 PDF、DOCX、Final Draft、FDX 或后端导出。
+- 未新增真实外部 LLM 调用。
+- 未实现完整章节确认 UI、章节排序、章节编辑或手动重切章。
+
+验证记录：
+
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web typecheck`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/server test`：通过，server 5 个 Vitest 文件 / 28 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' --filter @story2script/web test`：通过，web 1 个 Vitest 文件 / 3 个 tests。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' lint`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' build`：通过。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui -- apps/web/tests/ui/p5-demo.spec.ts`：通过，Chromium 2 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' test:ui`：通过，Playwright Chromium 12 passed。
+- `& 'C:\nvm4w\nodejs\pnpm.cmd' verify`：通过，覆盖 typecheck、lint、test、build。
+- generator Chrome DevTools MCP 复核：PASS。
+  - 打开 `http://127.0.0.1:5173/demo`，确认初始合法 YAML、坏 YAML、恢复合法 YAML 三段路径。
+  - Network 显示三次 `POST /api/yaml/validate [200]`。
+  - full-page screenshot：`H:\tmp\P5-DEMO-003-fullpage.png`。
+  - 布局指标：`horizontalOverflow:false`、`clippedCount:0`。
+- evaluator 子代理 `019ea0d9-a041-7d50-ba8d-0d9af663168e`：PASS。
+  - 使用 Chrome DevTools MCP 独立完成真实页面交互、Network 复核和视觉检查。
+  - Screenshot：`H:\tmp\P5-DEMO-003-evaluator-fullpage.png`。
+  - 确认坏 YAML 返回 `{"valid":false,"errors":[{"path":"project.title","message":"必填字段缺失"}],"warnings":[]}`。
+
+状态确认：
+
+- `P5-DEMO-003` 已具备 contract、QA 报告、server fixture 测试、Playwright UI 覆盖、Chrome DevTools MCP generator/evaluator 证据、`pnpm verify` 和完整 `pnpm test:ui` 证据，可标记 `passes:true`。
+- 当前 `feature_list.json` 中全部 feature 均为 `passes:true`。
+
 ## 2026-06-07 - P5-POLISH-002 Loading Empty Error States
 
 目标：实现 `feature_list.json` 中的 `P5-POLISH-002`，统一 generation、validation、export 路径的 loading、empty、error 状态，让用户能看清当前阶段、错误来源和导出可用性。

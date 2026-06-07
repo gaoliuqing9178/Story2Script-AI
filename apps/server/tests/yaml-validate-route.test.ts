@@ -44,9 +44,11 @@ interface MutableScreenplay {
 
 const servers: ReturnType<typeof createServer>[] = [];
 let sampleYaml = '';
+let brokenDemoYaml = '';
 
 beforeAll(async () => {
   sampleYaml = await readFile(new URL('../../../examples/screenplay-sample.yaml', import.meta.url), 'utf8');
+  brokenDemoYaml = await readFile(new URL('../../../examples/screenplay-broken.yaml', import.meta.url), 'utf8');
 });
 
 afterEach(async () => {
@@ -81,6 +83,17 @@ describe('POST /api/yaml/validate', () => {
       valid: true,
       errors: [],
       warnings: []
+    });
+  });
+
+  it('keeps the deliberately broken demo fixture invalid with a precise path', async () => {
+    const { status, body } = await postValidate(brokenDemoYaml);
+
+    expect(status).toBe(200);
+    expect(body.valid).toBe(false);
+    expect(body.errors).toContainEqual({
+      path: 'project.title',
+      message: '必填字段缺失'
     });
   });
 

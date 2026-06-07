@@ -194,7 +194,7 @@
         "Update README with setup and demo route.",
         "Run pnpm verify and pnpm test:ui."
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
